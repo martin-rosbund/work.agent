@@ -1,0 +1,66 @@
+name: work-agent
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg17
+    environment:
+      POSTGRES_DB: workagent
+      POSTGRES_USER: workagent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/start.ps1 first}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U workagent -d workagent]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  api:
+    image: work-agent-api:latest
+    build: ./backend
+    environment: &backend-env
+      DATABASE_URL: postgresql+psycopg://workagent:${POSTGRES_PASSWORD}@db/workagent
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
+      DATA_DIR: /data
+      MASTER_KEY_FILE: /run/secrets/master_key
+      SETUP_TOKEN_FILE: /run/secrets/setup_token
+    secrets: &backend-secrets
+      - master_key
+      - setup_token
+    volumes: &backend-volumes
+      - ./data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    command: [sh, -c, "alembic upgrade head && python -m app.bootstrap && uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log"]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  worker:
+    image: work-agent-api:latest
+    environment: *backend-env
+    secrets: *backend-secrets
+    volumes: *backend-volumes
+    depends_on:
+      api:
+        condition: service_healthy
+    command: [python, -m, app.worker]
+    restart: unless-stopped
+  web:
+    image: work-agent-web:latest
+    build: ./frontend
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  database:
+secrets:
+  master_key:
+    file: ./.secrets/master_key
+  setup_token:
+    file: ./.secrets/setup_token

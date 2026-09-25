@@ -1,0 +1,15 @@
+# Use only with: docker compose -p work-agent-e2e -f compose.yaml -f compose.test.yaml ...
+services:
+  api:
+    environment:
+      APP_ORIGIN: http://localhost:8081
+    volumes: !override
+      - ./.cache/e2e/data:/data
+  worker:
+    environment:
+      APP_ORIGIN: http://localhost:8081
+    volumes: !override
+      - ./.cache/e2e/data:/data
+  web:
+    ports: !override
+      - "127.0.0.1:8081:80"

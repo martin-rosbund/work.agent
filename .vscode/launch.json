@@ -1,0 +1,83 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Frontend",
+      "type": "pwa-msedge",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/frontend",
+      "sourceMaps": true,
+      "preLaunchTask": "Work Agent: Entwicklung starten",
+      "postDebugTask": "Work Agent: Entwicklung stoppen"
+    },
+    {
+      "name": "Backend",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "127.0.0.1", "port": 5678 },
+      "pathMappings": [
+        { "localRoot": "${workspaceFolder}/backend", "remoteRoot": "/app" }
+      ],
+      "justMyCode": true,
+      "preLaunchTask": "Work Agent: Entwicklung starten",
+      "postDebugTask": "Work Agent: Entwicklung stoppen"
+    },
+    {
+      "name": "Worker",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "127.0.0.1", "port": 5679 },
+      "pathMappings": [
+        { "localRoot": "${workspaceFolder}/backend", "remoteRoot": "/app" }
+      ],
+      "justMyCode": true,
+      "preLaunchTask": "Work Agent: Entwicklung starten",
+      "postDebugTask": "Work Agent: Entwicklung stoppen"
+    },
+    {
+      "name": "Frontend (Gesamt)",
+      "type": "pwa-msedge",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/frontend",
+      "sourceMaps": true,
+      "presentation": { "hidden": true },
+      "postDebugTask": "Work Agent: Entwicklung stoppen"
+    },
+    {
+      "name": "Backend (Gesamt)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "127.0.0.1", "port": 5678 },
+      "pathMappings": [
+        { "localRoot": "${workspaceFolder}/backend", "remoteRoot": "/app" }
+      ],
+      "justMyCode": true,
+      "presentation": { "hidden": true }
+    },
+    {
+      "name": "Worker (Gesamt)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "127.0.0.1", "port": 5679 },
+      "pathMappings": [
+        { "localRoot": "${workspaceFolder}/backend", "remoteRoot": "/app" }
+      ],
+      "justMyCode": true,
+      "presentation": { "hidden": true }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Gesamte Anwendung",
+      "configurations": [
+        "Backend (Gesamt)",
+        "Worker (Gesamt)",
+        "Frontend (Gesamt)"
+      ],
+      "preLaunchTask": "Work Agent: Entwicklung starten",
+      "stopAll": true
+    }
+  ]
+}

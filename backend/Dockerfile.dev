@@ -1,0 +1,4 @@
+FROM work-agent-api:latest
+USER root
+RUN pip install --no-cache-dir debugpy==1.8.21
+USER agent

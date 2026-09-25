@@ -1,0 +1,80 @@
+name: work-agent-dev
+services:
+  db:
+    image: pgvector/pgvector:0.8.0-pg17
+    environment:
+      POSTGRES_DB: workagent
+      POSTGRES_USER: workagent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/dev.ps1 first}
+    volumes: [database:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U workagent -d workagent]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+  api:
+    image: work-agent-api-dev:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    environment: &environment
+      DATABASE_URL: postgresql+psycopg://workagent:${POSTGRES_PASSWORD}@db/workagent
+      APP_ORIGIN: http://localhost:5173
+      SESSION_COOKIE: workagent_dev_session
+      OAUTH_COOKIE: workagent_dev_oauth
+      DATA_DIR: /data
+      MASTER_KEY_FILE: /run/secrets/master_key
+      SETUP_TOKEN_FILE: /run/secrets/setup_token
+    volumes: &volumes
+      - ./backend:/app
+      - ./.local/dev/data:/data
+    secrets: &secrets [master_key, setup_token]
+    ports: ["127.0.0.1:5678:5678"]
+    depends_on:
+      db: {condition: service_healthy}
+    command: [sh, -c, "alembic upgrade head && python -m app.dev_bootstrap && python -Xfrozen_modules=off -m debugpy --listen 0.0.0.0:5678 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log"]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+  worker:
+    image: work-agent-api-dev:latest
+    environment: *environment
+    volumes: *volumes
+    secrets: *secrets
+    ports: ["127.0.0.1:5679:5679"]
+    depends_on:
+      api: {condition: service_healthy}
+    command: [python, -Xfrozen_modules=off, -m, debugpy, --listen, "0.0.0.0:5679", -m, app.worker]
+    healthcheck:
+      # Do not connect a second DAP client: that can disturb an attached debugger.
+      test: [CMD, python, -c, "import sys; sys.exit(not any(r.split()[1].endswith(':162F') and r.split()[3]=='0A' for r in open('/proc/net/tcp').readlines()[1:]))"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  web:
+    image: node:22-bookworm-slim
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - node_modules:/app/node_modules
+    environment:
+      API_PROXY_TARGET: http://api:8000
+    ports: ["127.0.0.1:5173:5173"]
+    command: [sh, -c, "npm ci --ignore-scripts && npm run dev -- --host 0.0.0.0 --port 5173"]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:5173').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+volumes:
+  database:
+  node_modules:
+secrets:
+  master_key:
+    file: ./.local/dev/secrets/master_key
+  setup_token:
+    file: ./.local/dev/secrets/setup_token
