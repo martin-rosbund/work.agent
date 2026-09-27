@@ -145,9 +145,11 @@ def microsoft_settings(body: MicrosoftSettings, session=None, db=None):
         {
             "tenant_id": str(body.tenant_id),
             "client_id": str(body.client_id),
-            "secret": encrypt(body.client_secret)
-            if body.client_secret
-            else existing.get("secret", ""),
+            "secret": (
+                encrypt(body.client_secret)
+                if body.client_secret
+                else existing.get("secret", "")
+            ),
         },
     )
     db.commit()
@@ -243,6 +245,8 @@ def sources(session=None, db=None):
     return [
         serialize(source)
         for source in db.scalars(select(Source).order_by(Source.created_at))
+        if not source.kind.startswith("crm_")
+        or source.config.get("crm_connection_id") == setting(db, "crm").get("id")
     ]
 
 
@@ -260,7 +264,9 @@ def validate_source(body):
     if body.kind == "chat" and body.config.get("mode") == "all_direct_incoming":
         required = []
         if body.config.get("chat_id"):
-            raise HTTPException(400, "Bitte Einzelchat oder alle Direktnachrichten auswählen.")
+            raise HTTPException(
+                400, "Bitte Einzelchat oder alle Direktnachrichten auswählen."
+            )
     if any(
         (
             not isinstance(body.config.get(key), str) or not body.config[key]
@@ -303,6 +309,12 @@ def update_source(source_id: str, body: SourceUpdate, session=None, db=None):
     source = db.get(Source, source_id)
     if not source:
         raise HTTPException(404, "Quelle nicht gefunden.")
+    if source.kind.startswith("crm_") and any(
+        [body.enabled, body.writable, body.ai_enabled]
+    ):
+        from app.integrations.crm.client import check_connection
+
+        check_connection(db, source)
     if source.kind == "github" and body.writable:
         raise HTTPException(
             400, "GitHub-Verbindungen unterstützen ausschließlich lesenden Zugriff."

@@ -7,6 +7,7 @@ from app.core.logging import worker_failure
 from app.features.github import sync as github_sync
 from app.features.github.models import GitHubConnection
 from app.integrations.github.client import GitHubError
+from app.integrations.crm.client import CrmError
 
 from . import actions, ai
 from .connectors import connector_for
@@ -130,7 +131,7 @@ def run_job(job_id):
             # Do not persist raw third-party exception bodies, which may echo request contents.
             safe = (
                 message[:500]
-                if isinstance(exc, (ValueError, GraphError, GitHubError))
+                if isinstance(exc, (ValueError, GraphError, GitHubError, CrmError))
                 or hasattr(exc, "detail")
                 else f"{type(exc).__name__}: Verarbeitung fehlgeschlagen. Verbindung und Einstellungen prüfen."
             )
@@ -152,7 +153,7 @@ def run_job(job_id):
                             exc.retry_after, min(3600, 30 * 2 ** min(job.attempts, 6))
                         )
                     )
-            elif isinstance(exc, GraphError) and job.kind == "sync":
+            elif isinstance(exc, (GraphError, CrmError)) and job.kind == "sync":
                 source = db.get(Source, job.payload["source_id"])
                 if exc.status in {401, 403, 404}:
                     source.status = "reauth" if exc.status == 401 else "forbidden"

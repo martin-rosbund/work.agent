@@ -49,7 +49,7 @@ def items(
     if source_id:
         query = query.where(Item.source_id == source_id)
     return [
-        item_dict(db, i)
+        item_dict(db, i, preview=True)
         for i in db.scalars(
             query.order_by(Item.occurred_at.desc())
             .offset(max(0, offset))
@@ -120,9 +120,13 @@ def item_status(item_id: str, body: ItemStatus, session=None, db=None):
     if body.status not in {"new", "in_progress", "waiting", "done"}:
         raise HTTPException(400, "Unbekannter Status.")
     item = visible_item(db, item_id)
-    if item.kind == "task" and db.get(Source, item.source_id).kind == "todo":
+    if item.kind in {"task", "calendar"} and (
+        db.get(Source, item.source_id).kind == "todo"
+        or db.get(Source, item.source_id).kind.startswith("crm_")
+    ):
         raise HTTPException(
-            400, "Microsoft-Aufgaben bitte über einen freigegebenen Vorschlag ändern."
+            400,
+            "Externe Aufgaben und Termine bitte über einen freigegebenen Vorschlag ändern.",
         )
     item.status = body.status
     db.commit()

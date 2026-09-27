@@ -29,7 +29,8 @@ export async function api<T = any>(
     if (
       response.status === 401 &&
       !path.startsWith("/auth") &&
-      !path.startsWith("/microsoft")
+      !path.startsWith("/microsoft") &&
+      !path.startsWith("/crm")
     )
       window.dispatchEvent(new Event("session-expired"));
     throw new Error(

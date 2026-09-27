@@ -2632,6 +2632,148 @@
           }
         }
       }
+    },
+    "/api/v1/crm": {
+      "get": {
+        "tags": [
+          "crm"
+        ],
+        "summary": "Connection",
+        "operationId": "connection_api_v1_crm_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmConnectionView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "crm"
+        ],
+        "summary": "Connect",
+        "operationId": "connect_api_v1_crm_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrmConnectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmConnectionView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "crm"
+        ],
+        "summary": "Disconnect",
+        "operationId": "disconnect_api_v1_crm_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmConnectionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/crm/test": {
+      "post": {
+        "tags": [
+          "crm"
+        ],
+        "summary": "Test Connection",
+        "operationId": "test_connection_api_v1_crm_test_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmConnectionView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/crm/options/{kind}": {
+      "get": {
+        "tags": [
+          "crm"
+        ],
+        "summary": "Options",
+        "operationId": "options_api_v1_crm_options__kind__get",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrmOptionsView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2765,6 +2907,83 @@
               }
             ],
             "title": "Expected Version"
+          },
+          "crm_updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Updated At"
+          },
+          "crm_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Status"
+          },
+          "crm_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Category"
+          },
+          "crm_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Type"
+          },
+          "crm_forecast": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Forecast"
+          },
+          "crm_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Origin"
+          },
+          "crm_loss_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Loss Reason"
           }
         },
         "additionalProperties": true,
@@ -3612,6 +3831,142 @@
         ],
         "title": "ConversationView"
       },
+      "CrmChoice": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "closed": {
+            "type": "boolean",
+            "title": "Closed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "CrmChoice"
+      },
+      "CrmConnectionInput": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Url"
+          },
+          "api_url": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Api Url",
+            "default": ""
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Token",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "CrmConnectionInput"
+      },
+      "CrmConnectionView": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "default": ""
+          },
+          "api_url": {
+            "type": "string",
+            "title": "Api Url",
+            "default": ""
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "default": false
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          },
+          "person": {
+            "type": "string",
+            "title": "Person",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "CrmConnectionView"
+      },
+      "CrmOptionsView": {
+        "properties": {
+          "statuses": {
+            "items": {
+              "$ref": "#/components/schemas/CrmChoice"
+            },
+            "type": "array",
+            "title": "Statuses"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CrmChoice"
+            },
+            "type": "array",
+            "title": "Categories",
+            "default": []
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/CrmChoice"
+            },
+            "type": "array",
+            "title": "Types",
+            "default": []
+          },
+          "forecasts": {
+            "items": {
+              "$ref": "#/components/schemas/CrmChoice"
+            },
+            "type": "array",
+            "title": "Forecasts",
+            "default": []
+          },
+          "origins": {
+            "items": {
+              "$ref": "#/components/schemas/CrmChoice"
+            },
+            "type": "array",
+            "title": "Origins",
+            "default": []
+          },
+          "loss_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/CrmChoice"
+            },
+            "type": "array",
+            "title": "Loss Reasons",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "statuses"
+        ],
+        "title": "CrmOptionsView"
+      },
       "DiscoveryEntry": {
         "properties": {
           "id": {
@@ -4082,6 +4437,95 @@
             },
             "type": "array",
             "title": "Citations"
+          },
+          "crm_entity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Entity"
+          },
+          "crm_updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Updated At"
+          },
+          "crm_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Status"
+          },
+          "crm_status_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Status Label"
+          },
+          "crm_fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Crm Fields"
+          },
+          "recurrence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recurrence"
+          },
+          "latest_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Message"
+          },
+          "teams_conversation": {
+            "type": "boolean",
+            "title": "Teams Conversation",
+            "default": false
+          },
+          "message_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Count"
           }
         },
         "additionalProperties": true,

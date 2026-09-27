@@ -102,7 +102,9 @@ def test_teams_channel_replies_and_deletion(db):
     graph._sync(db, source, MockGraph())
     db.commit()
     items = list(db.scalars(select(Item)))
-    assert len(items) == 2 and len({i.thread_key for i in items}) == 1
+    assert len(items) == 1
+    assert items[0].meta["root_id"] == "p"
+    assert [m["body"] for m in items[0].meta["teams_messages"]] == ["Frage", "Antwort"]
 
 
 def test_retry_after_is_preserved(db):

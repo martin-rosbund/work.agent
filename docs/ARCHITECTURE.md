@@ -30,8 +30,9 @@ Browser / React
 | `features/proposals/` | Vorschläge, Bearbeitung, versionsgebundene Freigabe und Ausführung |
 | `features/agent/` | KI-Kontext, Verbrauchslimits, Suche, Analyse und Chat-Orchestrierung |
 | `features/github/` | Verbindungen, Repositories, Issues, Kommentare, Synchronisierung und Demo |
+| `features/crm/` | Persönliche ISB.CRM-Verbindung und dynamische Auswahlkataloge |
 | `features/system/` | Gesundheit, API-Dokumentation, Ereignisstrom und Betriebsübersicht |
-| `integrations/` | Microsoft-, GitHub- und OpenAI-Adapter; Registry der Quellkonnektoren |
+| `integrations/` | Microsoft-, GitHub-, ISB.CRM- und OpenAI-Adapter; Registry der Quellkonnektoren |
 
 Jeder HTTP-Fachbereich besitzt `router.py`, `schemas.py` und `service.py`. Die Router übernehmen Transport und Authentifizierung; Services prüfen fachliche Regeln. `storage.py`, `ingestion.py` und `execution.py` kapseln gemeinsam verwendete Abläufe. Die kleinen Dateien im bisherigen `app/`-Namensraum sind Kompatibilitätsimporte für bestehende Aufrufer und Tests.
 

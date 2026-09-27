@@ -5,19 +5,25 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from app.core.models import Item, now
-from app.features.content.ingestion import remove_item, upsert
 from app.services import date, setting
-from .client import GraphError, plain, q
+from .client import GraphError, q
+from .threads import migrate_threads, sync_thread
 
 
 def sync_direct_messages(db, source, graph):
     own_id = setting(db, "microsoft_account").get("oid")
     if not own_id:
         raise GraphError(401, "Bitte Microsoft erneut verbinden.")
+    migrated = migrate_threads(db, source)
     cutoff = now() - timedelta(days=int(source.config.get("days", 90)))
     cursor = dict(source.cursor)
     states = dict(cursor.get("chats", {}))
     pending = list(cursor.get("pending", []))
+    for chat_id in migrated:
+        if chat_id in states:
+            states[chat_id] = {**states[chat_id], "full": None}
+    pending = [{**task, "full": True} if task["id"] in migrated else task
+               for task in pending]
     if not pending:
         chats, _ = graph.pages(
             "/me/chats?$filter=chatType eq 'oneOnOne'&$expand=lastMessagePreview&$top=50"
@@ -69,36 +75,10 @@ def sync_direct_messages(db, source, graph):
                     item.available = False
             states.pop(chat_id, None)
         else:
-            seen = set()
-            for message in rows:
-                external_id = chat_id + ":" + message["id"]
-                sender = ((message.get("from") or {}).get("user") or {})
-                if (
-                    message.get("deletedDateTime")
-                    or message.get("messageType", "message") != "message"
-                    or not sender.get("id") or sender["id"] == own_id
-                ):
-                    remove_item(db, source.id, external_id)
-                    continue
-                if date(message.get("createdDateTime")) < cutoff:
-                    continue
-                seen.add(external_id)
-                body = plain((message.get("body") or {}).get("content", ""))
-                upsert(
-                    db, source, external_id, "chat",
-                    message.get("subject") or body[:100] or "Teams-Nachricht",
-                    body, sender.get("displayName") or "Teams-Kontakt",
-                    date(message.get("createdDateTime")), chat_id,
-                    message.get("webUrl") or "",
-                    {"chat_id": chat_id, "root_id": message["id"], "incoming": True},
-                    initial=not state,
-                )
-            if task["full"]:
-                for item in db.scalars(select(Item).where(
-                    Item.source_id == source.id, Item.occurred_at >= cutoff,
-                )):
-                    if item.meta.get("chat_id") == chat_id and item.external_id not in seen:
-                        item.available = False
+            sync_thread(
+                db, source, chat_id, rows, cutoff=cutoff,
+                full=task["full"], initial=not state,
+            )
             states[chat_id] = {
                 "preview": task["preview"],
                 "since": (started - timedelta(minutes=5)).isoformat(),

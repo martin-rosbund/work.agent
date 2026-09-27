@@ -436,7 +436,7 @@ export function App() {
                   items={inbox}
                   sources={sources}
                   loaded={loaded}
-                  open={setSelected}
+                  open={(item) => void openItem(item.id)}
                   chat={openChat}
                   refresh={refresh}
                   settings={() => navigate("settings")}

@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import { api, Source, Item, Proposal } from "../../api";
 import { fmt } from "../../shared/presentation";
 import { useNotice } from "../../shared/notifications";
-import { Button, Empty, PageHeader } from "../../shared/ui";
+import { Button, Badge, Empty, PageHeader } from "../../shared/ui";
 import { ProposalCard } from "../proposals/ProposalCard";
 import { ProposalEditor } from "../proposals/ProposalEditor";
 
@@ -22,13 +22,18 @@ export function CalendarPage({
   open: (i: Item) => void;
 }) {
   const [editor, setEditor] = useState<Proposal | null>(null),
+    [filter, setFilter] = useState("open"),
     [proposals, setProposals] = useState<Proposal[]>([]);
   const notice = useNotice();
   useEffect(() => {
     api<Proposal[]>("/proposals")
       .then((p) =>
         setProposals(
-          p.filter((x) => x.kind === "create_event" && x.status !== "rejected"),
+          p.filter(
+            (x) =>
+              ["create_event", "update_event"].includes(x.kind) &&
+              x.status !== "rejected",
+          ),
         ),
       )
       .catch((e) => notice(e.message, true));
@@ -42,14 +47,24 @@ export function CalendarPage({
         action={
           <Button
             kind="primary"
-            disabled={!sources.some((s) => s.kind === "calendar" && s.writable)}
+            disabled={
+              !sources.some(
+                (s) =>
+                  ["calendar", "crm_event"].includes(s.kind) &&
+                  s.enabled &&
+                  s.writable,
+              )
+            }
             onClick={() =>
               setEditor({
                 id: "",
                 kind: "create_event",
                 payload: {
                   source_id: sources.find(
-                    (s) => s.kind === "calendar" && s.writable,
+                    (s) =>
+                      ["calendar", "crm_event"].includes(s.kind) &&
+                      s.enabled &&
+                      s.writable,
                   )?.id,
                   subject: "",
                   body: "",
@@ -71,13 +86,51 @@ export function CalendarPage({
           <div className="list-section-label">
             AGENDA <span>Europe/Berlin</span>
           </div>
-          {[...items]
+          <label>
+            Terminstatus
+            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="open">Offen</option>
+              <option value="done">Abgeschlossen</option>
+              <option value="all">Alle</option>
+            </select>
+          </label>
+          {items
+            .filter(
+              (i) =>
+                filter === "all" ||
+                (filter === "done" ? i.status === "done" : i.status !== "done"),
+            )
             .sort((a, b) => a.occurred_at.localeCompare(b.occurred_at))
             .map((i) => (
               <button
                 className="calendar-row"
                 key={i.id}
-                onClick={() => open(i)}
+                onClick={() => {
+                  if (
+                    i.source_kind === "crm_event" &&
+                    !i.meta.recurrence &&
+                    sources.some((s) => s.id === i.source_id && s.writable)
+                  ) {
+                    setEditor({
+                      id: "",
+                      kind: "update_event",
+                      payload: {
+                        source_id: i.source_id,
+                        item_id: i.id,
+                        subject: i.title,
+                        body: i.body,
+                        start: i.meta.start?.dateTime,
+                        end: i.meta.end?.dateTime,
+                        crm_updated_at: i.meta.crm_updated_at,
+                        crm_status: i.meta.crm_status,
+                      },
+                      version: 1,
+                      status: "draft",
+                      result: {},
+                      citations: [],
+                    });
+                  } else open(i);
+                }}
               >
                 <div className="calendar-date">
                   <strong>
@@ -101,6 +154,14 @@ export function CalendarPage({
                     {fmt(i.meta.start?.dateTime)} – {fmt(i.meta.end?.dateTime)}
                   </p>
                   <small>{i.source_name}</small>
+                  {i.meta.crm_status_label && (
+                    <Badge kind={i.status === "done" ? "green" : "orange"}>
+                      {i.meta.crm_status_label}
+                    </Badge>
+                  )}
+                  {i.meta.recurrence && (
+                    <small>Terminserie · im CRM bearbeiten</small>
+                  )}
                 </div>
                 <ArrowUpRight size={18} />
               </button>
@@ -109,7 +170,7 @@ export function CalendarPage({
             <Empty
               icon={<CalendarDays />}
               title="Deine Termine kommen hier zusammen"
-              text="Verbinde einen Outlook-Kalender in den Einstellungen. Terminvorschläge bestätigst du vor dem Anlegen."
+              text="Verbinde einen Outlook- oder CRM-Kalender in den Einstellungen. Terminvorschläge bestätigst du vor dem Anlegen."
             />
           )}
         </section>

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sparkles, FileText, Check, LoaderCircle } from "lucide-react";
-import { api, Proposal } from "../../api";
+import { api, Proposal, Source } from "../../api";
 import { actionLabels, statusLabels, fmt } from "../../shared/presentation";
 import { useNotice } from "../../shared/notifications";
 import { Button, Badge, Markdown, Modal } from "../../shared/ui";
@@ -19,6 +19,23 @@ export function ProposalCard({
     [confirm, setConfirm] = useState(false),
     [busy, setBusy] = useState(false);
   const notice = useNotice();
+  const [destination, setDestination] = useState<Source | null>(null);
+  useEffect(() => {
+    let active = true;
+    setDestination(null);
+    if (proposal.payload.source_id)
+      api<Source[]>("/sources")
+        .then((rows) => {
+          if (active)
+            setDestination(
+              rows.find((s) => s.id === proposal.payload.source_id) || null,
+            );
+        })
+        .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [proposal.payload.source_id]);
   async function approve() {
     setBusy(true);
     try {
@@ -35,6 +52,29 @@ export function ProposalCard({
     }
   }
   const p = proposal.payload;
+  const targetDetails = (
+    <>
+      {p.source_id && (
+        <p>
+          Ziel: <strong>{destination?.name || "Quelle wird geladen …"}</strong>
+        </p>
+      )}
+      {Object.entries({
+        crm_status: "CRM-Status",
+        crm_category: "Kategorie",
+        crm_type: "Art / Phase",
+        crm_forecast: "Forecast",
+        crm_origin: "Herkunft",
+        crm_loss_reason: "Verlustgrund",
+      }).map(([key, label]) =>
+        p[key] ? (
+          <p key={key}>
+            {label}: {String(p[key])}
+          </p>
+        ) : null,
+      )}
+    </>
+  );
   return (
     <div
       className={
@@ -64,6 +104,7 @@ export function ProposalCard({
         </div>
       )}
       {p.title && <h4>{p.title}</h4>}
+      {targetDetails}
       {p.subject && <h4>{p.subject}</h4>}
       {p.start && (
         <div className="proposal-target">
@@ -132,6 +173,7 @@ export function ProposalCard({
           </p>
           <div className="approval-preview">
             <strong>{actionLabels[proposal.kind]}</strong>
+            {targetDetails}
             {p.recipient && <p>An: {p.recipient}</p>}
             {p.title && <h3>{p.title}</h3>}
             {p.subject && <h3>{p.subject}</h3>}

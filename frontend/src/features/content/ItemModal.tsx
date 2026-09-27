@@ -1,4 +1,5 @@
 import { Sparkles, ExternalLink, Download } from "lucide-react";
+import { useState } from "react";
 import { api, Item } from "../../api";
 import { statusLabels, fmt } from "../../shared/presentation";
 import { useNotice } from "../../shared/notifications";
@@ -16,6 +17,16 @@ export function ItemModal({
   refresh: () => void;
 }) {
   const notice = useNotice();
+  const [visibleMessages, setVisibleMessages] = useState(50);
+  const teamsMessages = item.meta?.teams_conversation
+    ? (item.meta.teams_messages as {
+        id: string;
+        sender: string;
+        created_at: string;
+        body: string;
+        incoming: boolean;
+      }[])
+    : undefined;
   return (
     <Modal title={item.title} onClose={onClose} wide>
       <div className="item-meta">
@@ -46,7 +57,29 @@ export function ItemModal({
             <p>{item.focus.text}</p>
           </section>
         )}
-        {item.kind === "knowledge" ? (
+        {teamsMessages ? (
+          <div className="teams-history" aria-label="Teams-Nachrichtenverlauf">
+            {teamsMessages.length > visibleMessages && (
+              <Button onClick={() => setVisibleMessages((count) => count + 50)}>
+                Ältere Nachrichten anzeigen
+              </Button>
+            )}
+            {teamsMessages.slice(-visibleMessages).map((message) => (
+              <article
+                key={message.id}
+                className={
+                  "teams-message" + (message.incoming ? "" : " outgoing")
+                }
+              >
+                <div className="chat-message-label">
+                  <strong>{message.sender}</strong>
+                  <time>{fmt(message.created_at)}</time>
+                </div>
+                <p>{message.body}</p>
+              </article>
+            ))}
+          </div>
+        ) : item.kind === "knowledge" ? (
           <Markdown text={item.body} />
         ) : (
           <p>{item.body || "Der Inhalt wird noch verarbeitet."}</p>

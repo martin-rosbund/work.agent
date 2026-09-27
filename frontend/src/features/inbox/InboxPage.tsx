@@ -33,15 +33,23 @@ export function InboxPage({
   refresh: () => void;
   settings: () => void;
 }) {
-  const [filter, setFilter] = useState("all"),
+  const [filter, setFilter] = useState("new"),
     [sourceFilter, setSourceFilter] = useState("all"),
     [busy, setBusy] = useState(false);
   const notice = useNotice(),
-    visible = items.filter(
-      (i) =>
-        (filter === "all" || i.status === filter) &&
-        (sourceFilter === "all" || i.source_kind === sourceFilter),
+    sourceItems = items.filter(
+      (i) => sourceFilter === "all" || i.source_kind === sourceFilter,
+    ),
+    visible = sourceItems.filter(
+      (i) => filter === "all" || i.status === filter,
     );
+  const counts = sourceItems.reduce<Record<string, number>>(
+    (totals, item) => {
+      totals[item.status] = (totals[item.status] || 0) + 1;
+      return totals;
+    },
+    { all: sourceItems.length },
+  );
   async function sync() {
     setBusy(true);
     try {
@@ -129,10 +137,13 @@ export function InboxPage({
                 <button
                   key={id}
                   className={filter === id ? "selected" : ""}
+                  aria-pressed={filter === id}
                   onClick={() => setFilter(id)}
                 >
                   {label}
-                  {id === "all" && <span>{items.length}</span>}
+                  <span title="Bereits geladene Nachrichten">
+                    {loaded ? counts[id] || 0 : "…"}
+                  </span>
                 </button>
               ))}
             </div>
@@ -177,8 +188,18 @@ export function InboxPage({
                     </span>
                   </div>
                   <h3>{item.title}</h3>
-                  <p>{item.summary || item.body.slice(0, 150)}</p>
+                  <p>
+                    {item.summary ||
+                      (typeof item.meta?.latest_message === "string"
+                        ? item.meta.latest_message.slice(0, 150)
+                        : item.body.slice(0, 150))}
+                  </p>
                   <div className="message-tags">
+                    {item.meta?.teams_conversation === true && (
+                      <Badge>
+                        {Number(item.meta.message_count)} Nachrichten
+                      </Badge>
+                    )}
                     <Badge
                       kind={
                         item.status === "done"

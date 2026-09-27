@@ -13,6 +13,7 @@ DEFAULT_AGENT = {
         "reply_email",
         "reply_teams",
         "create_event",
+        "update_event",
         "create_task",
         "update_task",
         "complete_task",

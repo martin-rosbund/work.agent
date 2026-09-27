@@ -20,9 +20,16 @@ export function Icon({ kind, size = 18 }: { kind: string; size?: number }) {
       ? Mail
       : ["chat", "channel"].includes(kind)
         ? MessageSquare
-        : kind === "calendar"
+        : ["calendar", "crm_event"].includes(kind)
           ? CalendarDays
-          : ["todo", "task", "local_tasks"].includes(kind)
+          : [
+                "todo",
+                "task",
+                "local_tasks",
+                "crm_effort",
+                "crm_office",
+                "crm_sales",
+              ].includes(kind)
             ? CheckCheck
             : kind === "knowledge"
               ? BookOpen

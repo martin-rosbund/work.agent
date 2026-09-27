@@ -45,7 +45,9 @@ def test_direct_inbox_incoming_only_new_contacts_deletion_and_id_collisions(db, 
     sync_direct_messages(db, direct_source, graph)
     db.commit()
     items = list(db.scalars(select(Item)))
-    assert {item.external_id for item in items} == {"a:1", "b:1"}
+    assert {item.external_id for item in items} == {"conversation:a", "conversation:b"}
+    assert all(len(item.meta["teams_messages"]) == 2 for item in items)
+    assert all(item.meta["teams_messages"][1]["incoming"] is False for item in items)
     assert {item.meta["chat_id"] for item in items} == {"a", "b"}
     assert direct_source.last_sync is not None
     graph.chats.append({"id": "new-person", "chatType": "oneOnOne"})
@@ -113,7 +115,7 @@ def test_approved_reply_uses_original_direct_chat(db, direct_source, monkeypatch
     put_setting(db, "agent", DEFAULT_AGENT)
     direct_source.writable = True
     sync_direct_messages(db, direct_source, InboxGraph())
-    item = db.scalar(select(Item).where(Item.external_id == "a:1"))
+    item = db.scalar(select(Item).where(Item.external_id == "conversation:a"))
     proposal = Proposal(kind="reply_teams", item_id=item.id, payload={
         "source_id": direct_source.id, "item_id": item.id,
         "body": "Reply", "recipient": direct_source.name,

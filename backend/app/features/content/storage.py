@@ -47,8 +47,12 @@ def replace_chunks(db, item, sections=None):
         )
 
 
-def item_dict(db, item):
+def item_dict(db, item, *, preview=False):
     data = serialize(item)
+    if preview and item.meta.get("teams_conversation"):
+        data["meta"] = {key: value for key, value in item.meta.items()
+                        if key != "teams_messages"}
+        data["body"] = item.meta.get("latest_message", "")[:150]
     data.pop("file_path", None)
     source = db.get(Source, item.source_id)
     data["source_name"] = source.name if source else ""

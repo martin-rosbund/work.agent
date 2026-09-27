@@ -8,6 +8,7 @@ from app.models import Item, now, uid
 from app.services import audit, date
 
 from .client import Graph, GraphError, plain, q, source_scopes
+from .threads import migrate_threads, sync_thread, thread_item
 
 
 def sync_source(db, source):
@@ -87,55 +88,35 @@ def _sync(db, source, graph):
         if delta:
             cursor["delta"] = delta
     elif source.kind in {"chat", "channel"}:
+        migrated = migrate_threads(db, source)
+        full = full or bool(migrated)
         if source.kind == "chat":
             since = cutoff if full else source.last_sync - timedelta(minutes=5)
             path = f"/chats/{q(cfg['chat_id'])}/messages?$top=50&$orderby=lastModifiedDateTime desc&$filter=lastModifiedDateTime gt {since.isoformat()}Z"
+            rows, _ = graph.pages(path)
+            sync_thread(db, source, cfg["chat_id"], rows, cutoff=cutoff,
+                        full=full, initial=initial)
         else:
             path = f"/teams/{q(cfg['team_id'])}/channels/{q(cfg['channel_id'])}/messages?$top=50"
-        rows, _ = graph.pages(path)
-        for msg in rows:
-            thread = (
-                msg.get("replyToId") or msg["id"]
-                if source.kind == "channel"
-                else cfg["chat_id"]
-            )
-            entries = [msg]
-            if source.kind == "channel":
+            rows, _ = graph.pages(path)
+            threads = set()
+            for msg in rows:
+                thread = msg.get("replyToId") or msg["id"]
+                threads.add(f"{source.id}:{thread}")
+                if msg.get("deletedDateTime") or msg.get("@removed"):
+                    item = thread_item(db, source, thread)
+                    if item:
+                        item.available = False
+                    continue
                 replies, _ = graph.pages(
-                    f"/teams/{q(cfg['team_id'])}/channels/{q(cfg['channel_id'])}/messages/{q(msg['id'])}/replies?$top=50"
+                    f"/teams/{q(cfg['team_id'])}/channels/{q(cfg['channel_id'])}/messages/{q(thread)}/replies?$top=50"
                 )
-                entries += replies
-            for entry in entries:
-                seen.add(entry["id"])
-                if entry.get("deletedDateTime"):
-                    remove_item(db, source.id, entry["id"])
-                    continue
-                if date(entry.get("createdDateTime")) < cutoff:
-                    continue
-                body = plain(entry.get("body", {}).get("content", ""))
-                upsert(
-                    db,
-                    source,
-                    entry["id"],
-                    source.kind,
-                    entry.get("subject") or body[:100] or "Teams-Nachricht",
-                    body,
-                    ((entry.get("from") or {}).get("user") or {}).get(
-                        "displayName", ""
-                    ),
-                    date(entry.get("createdDateTime")),
-                    thread,
-                    entry.get("webUrl", ""),
-                    {
-                        "root_id": msg["id"],
-                        "chat_id": cfg.get("chat_id"),
-                        "team_id": cfg.get("team_id"),
-                        "channel_id": cfg.get("channel_id"),
-                    },
-                    initial=initial,
-                )
+                sync_thread(db, source, thread, [msg, *replies], cutoff=cutoff,
+                            full=True, initial=initial)
+            for item in db.scalars(select(Item).where(Item.source_id == source.id)):
+                if item.meta.get("teams_conversation") and item.thread_key not in threads:
+                    item.available = False
         if full or source.kind == "channel":
-            reconcile(db, source, seen, cutoff)
             cursor["reconciled"] = now().isoformat()
     elif source.kind == "calendar":
         calendar = graph.request(

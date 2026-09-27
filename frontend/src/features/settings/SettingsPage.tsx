@@ -16,6 +16,7 @@ import { actionLabels, statusLabels, fmt } from "../../shared/presentation";
 import { useNotice } from "../../shared/notifications";
 import { Icon, Button, Badge, PageHeader } from "../../shared/ui";
 import { SourcePicker } from "./SourcePicker";
+import { CrmConnection } from "./CrmConnection";
 
 export function SettingsPage({
   sources,
@@ -105,6 +106,7 @@ export function SettingsPage({
       </div>
       {tab === "connections" ? (
         <div className="settings-grid">
+          <CrmConnection refresh={refresh} />
           <section className="settings-card">
             <div className="settings-title">
               <div className="source-icon mail">
@@ -378,6 +380,10 @@ export function SettingsPage({
                               "channel",
                               "calendar",
                               "todo",
+                              "crm_event",
+                              "crm_effort",
+                              "crm_office",
+                              "crm_sales",
                             ].includes(s.kind)
                           }
                           onChange={(e) =>
@@ -396,16 +402,27 @@ export function SettingsPage({
                     ),
                   )}
                   <div className="row">
-                    {!["knowledge", "uploads", "local_tasks", "github"].includes(
-                      s.kind,
-                    ) &&
+                    {![
+                      "knowledge",
+                      "uploads",
+                      "local_tasks",
+                      "github",
+                    ].includes(s.kind) &&
                       !s.config.demo && (
                         <>
                           <button
                             className="icon-button"
                             title="Berechtigungen aktualisieren"
                             aria-label="Berechtigungen aktualisieren"
-                            onClick={() => authorize(s.kind, s.writable)}
+                            onClick={() =>
+                              s.kind.startsWith("crm_")
+                                ? run(
+                                    "crmtest",
+                                    () => api("/crm/test", "POST"),
+                                    "CRM-Berechtigungen geprüft.",
+                                  )
+                                : authorize(s.kind, s.writable)
+                            }
                           >
                             <ShieldCheck size={16} />
                           </button>

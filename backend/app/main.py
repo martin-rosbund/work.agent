@@ -15,6 +15,8 @@ from app.features.planning.router import router as planning_router
 from app.features.proposals.router import router as proposals_router
 from app.features.system.router import router as system_router
 from app.integrations.github.client import GitHubError
+from app.integrations.crm.client import CrmError
+from app.features.crm.router import router as crm_router
 
 app = FastAPI(
     title="Work Agent",
@@ -55,6 +57,15 @@ app.include_router(proposals_router)
 app.include_router(system_router)
 app.include_router(github_router)
 app.include_router(planning_router)
+app.include_router(crm_router)
+
+
+@app.exception_handler(CrmError)
+async def crm_error(request, exc):
+    return JSONResponse(
+        {"detail": str(exc)},
+        status_code=exc.status if exc.status in {400, 401, 403, 404, 409, 429} else 502,
+    )
 
 
 @app.exception_handler(GitHubError)

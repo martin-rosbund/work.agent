@@ -19,6 +19,7 @@ export function TasksPage({
   refresh: () => void;
 }) {
   const [filter, setFilter] = useState("open"),
+    [sourceFilter, setSourceFilter] = useState(""),
     [editor, setEditor] = useState<Proposal | null>(null),
     [proposals, setProposals] = useState<Proposal[]>([]);
   const notice = useNotice();
@@ -33,8 +34,9 @@ export function TasksPage({
   }, [revision]);
   const shown = items.filter(
     (i) =>
-      filter === "all" ||
-      (filter === "done" ? i.status === "done" : i.status !== "done"),
+      (!sourceFilter || i.source_id === sourceFilter) &&
+      (filter === "all" ||
+        (filter === "done" ? i.status === "done" : i.status !== "done")),
   );
   return (
     <>
@@ -78,6 +80,30 @@ export function TasksPage({
       </div>
       <div className="task-layout">
         <section className="surface">
+          <label>
+            Aufgabenbereich
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+            >
+              <option value="">Alle Bereiche</option>
+              {sources
+                .filter((s) =>
+                  [
+                    "todo",
+                    "local_tasks",
+                    "crm_effort",
+                    "crm_office",
+                    "crm_sales",
+                  ].includes(s.kind),
+                )
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+            </select>
+          </label>
           <div className="list-section-label">
             MEINE AUFGABEN <span>{shown.length}</span>
           </div>
@@ -90,7 +116,10 @@ export function TasksPage({
                 aria-label={"Aufgabe abschließen: " + item.title}
                 disabled={item.status === "done"}
                 onClick={async () => {
-                  if (item.source_kind === "todo") {
+                  if (
+                    item.source_kind === "todo" ||
+                    item.source_kind.startsWith("crm_")
+                  ) {
                     setEditor({
                       id: "",
                       kind: "complete_task",
@@ -98,6 +127,7 @@ export function TasksPage({
                         source_id: item.source_id,
                         item_id: item.id,
                         title: item.title,
+                        crm_updated_at: item.meta.crm_updated_at,
                       },
                       version: 1,
                       status: "draft",
@@ -121,6 +151,16 @@ export function TasksPage({
                 <p>{item.body}</p>
                 <div className="row">
                   <Badge>{item.source_name}</Badge>
+                  {item.meta.crm_status_label && (
+                    <Badge kind={item.status === "done" ? "green" : "orange"}>
+                      {item.meta.crm_status_label}
+                    </Badge>
+                  )}
+                  {item.source_kind.startsWith("crm_") && item.web_url && (
+                    <a href={item.web_url} target="_blank" rel="noreferrer">
+                      Im CRM öffnen
+                    </a>
+                  )}
                   {item.meta.due && (
                     <span className="due">
                       <Clock size={12} />
@@ -133,7 +173,8 @@ export function TasksPage({
                   )}
                 </div>
               </div>
-              {item.source_kind === "todo" && (
+              {(item.source_kind === "todo" ||
+                item.source_kind.startsWith("crm_")) && (
                 <Button
                   onClick={() =>
                     setEditor({
@@ -144,6 +185,8 @@ export function TasksPage({
                         item_id: item.id,
                         title: item.title,
                         body: item.body,
+                        crm_updated_at: item.meta.crm_updated_at,
+                        crm_status: item.meta.crm_status,
                         due: (typeof item.meta.due === "string"
                           ? item.meta.due
                           : item.meta.due?.dateTime

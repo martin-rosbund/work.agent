@@ -913,6 +913,59 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/crm": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Connection */
+    get: operations["connection_api_v1_crm_get"];
+    /** Connect */
+    put: operations["connect_api_v1_crm_put"];
+    post?: never;
+    /** Disconnect */
+    delete: operations["disconnect_api_v1_crm_delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/crm/test": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Test Connection */
+    post: operations["test_connection_api_v1_crm_test_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/crm/options/{kind}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Options */
+    get: operations["options_api_v1_crm_options__kind__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -943,6 +996,20 @@ export interface components {
       attendees?: string[];
       /** Expected Version */
       expected_version?: number | null;
+      /** Crm Updated At */
+      crm_updated_at?: string | null;
+      /** Crm Status */
+      crm_status?: string | null;
+      /** Crm Category */
+      crm_category?: string | null;
+      /** Crm Type */
+      crm_type?: string | null;
+      /** Crm Forecast */
+      crm_forecast?: string | null;
+      /** Crm Origin */
+      crm_origin?: string | null;
+      /** Crm Loss Reason */
+      crm_loss_reason?: string | null;
     } & {
       [key: string]: unknown;
     };
@@ -1258,6 +1325,91 @@ export interface components {
        */
       created_at: string;
     };
+    /** CrmChoice */
+    CrmChoice: {
+      /** Value */
+      value: string;
+      /** Label */
+      label: string;
+      /**
+       * Closed
+       * @default false
+       */
+      closed: boolean;
+    };
+    /** CrmConnectionInput */
+    CrmConnectionInput: {
+      /** Url */
+      url: string;
+      /**
+       * Api Url
+       * @default
+       */
+      api_url: string;
+      /**
+       * Token
+       * @default
+       */
+      token: string;
+    };
+    /** CrmConnectionView */
+    CrmConnectionView: {
+      /**
+       * Url
+       * @default
+       */
+      url: string;
+      /**
+       * Api Url
+       * @default
+       */
+      api_url: string;
+      /**
+       * Configured
+       * @default false
+       */
+      configured: boolean;
+      /**
+       * Name
+       * @default
+       */
+      name: string;
+      /**
+       * Person
+       * @default
+       */
+      person: string;
+    };
+    /** CrmOptionsView */
+    CrmOptionsView: {
+      /** Statuses */
+      statuses: components["schemas"]["CrmChoice"][];
+      /**
+       * Categories
+       * @default []
+       */
+      categories: components["schemas"]["CrmChoice"][];
+      /**
+       * Types
+       * @default []
+       */
+      types: components["schemas"]["CrmChoice"][];
+      /**
+       * Forecasts
+       * @default []
+       */
+      forecasts: components["schemas"]["CrmChoice"][];
+      /**
+       * Origins
+       * @default []
+       */
+      origins: components["schemas"]["CrmChoice"][];
+      /**
+       * Loss Reasons
+       * @default []
+       */
+      loss_reasons: components["schemas"]["CrmChoice"][];
+    };
     /** DiscoveryEntry */
     DiscoveryEntry: {
       /** Id */
@@ -1420,6 +1572,29 @@ export interface components {
       due?: components["schemas"]["SourceTime"] | string | null;
       /** Citations */
       citations?: components["schemas"]["Citation"][];
+      /** Crm Entity */
+      crm_entity?: string | null;
+      /** Crm Updated At */
+      crm_updated_at?: string | null;
+      /** Crm Status */
+      crm_status?: string | null;
+      /** Crm Status Label */
+      crm_status_label?: string | null;
+      /** Crm Fields */
+      crm_fields?: {
+        [key: string]: string;
+      };
+      /** Recurrence */
+      recurrence?: string | null;
+      /** Latest Message */
+      latest_message?: string | null;
+      /**
+       * Teams Conversation
+       * @default false
+       */
+      teams_conversation: boolean;
+      /** Message Count */
+      message_count?: number | null;
     } & {
       [key: string]: unknown;
     };
@@ -3786,6 +3961,130 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["CalendarView"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  connection_api_v1_crm_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CrmConnectionView"];
+        };
+      };
+    };
+  };
+  connect_api_v1_crm_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CrmConnectionInput"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CrmConnectionView"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  disconnect_api_v1_crm_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CrmConnectionView"];
+        };
+      };
+    };
+  };
+  test_connection_api_v1_crm_test_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CrmConnectionView"];
+        };
+      };
+    };
+  };
+  options_api_v1_crm_options__kind__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        kind: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CrmOptionsView"];
         };
       };
       /** @description Validation Error */

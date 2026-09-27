@@ -14,12 +14,17 @@ export const labels: Record<string, string> = {
   uploads: "Dokumente",
   local_tasks: "Lokale Aufgaben",
   task: "Aufgabe",
+  crm_event: "CRM-Kalender",
+  crm_effort: "Aufwandsschätzung",
+  crm_office: "Office Task",
+  crm_sales: "Verkaufschance",
 };
 
 export const actionLabels: Record<string, string> = {
   reply_email: "E-Mail-Antwort",
   reply_teams: "Teams-Antwort",
   create_event: "Termin anlegen",
+  update_event: "CRM-Termin bearbeiten",
   create_task: "Aufgabe anlegen",
   update_task: "Aufgabe bearbeiten",
   complete_task: "Aufgabe abschließen",

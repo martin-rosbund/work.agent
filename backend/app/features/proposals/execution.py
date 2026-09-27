@@ -6,6 +6,8 @@ from sqlalchemy import select
 
 from app.graph import WRITE_SCOPES, Graph, GraphError, q
 from app.models import Item, Proposal, Source, now, uid
+from app.integrations.crm.client import CrmError
+from app.integrations.crm.mapping import TYPES as CRM_TYPES, TASK_KINDS
 from app.services import (
     agent_config,
     audit,
@@ -30,12 +32,20 @@ class Payload(BaseModel):
     end: str | None = None
     attendees: list[str] = Field(default_factory=list, max_length=100)
     expected_version: int | None = None
+    crm_updated_at: str | None = Field(default=None, max_length=100)
+    crm_status: str | None = Field(default=None, max_length=100)
+    crm_category: str | None = Field(default=None, max_length=100)
+    crm_type: str | None = Field(default=None, max_length=100)
+    crm_forecast: str | None = Field(default=None, max_length=100)
+    crm_origin: str | None = Field(default=None, max_length=100)
+    crm_loss_reason: str | None = Field(default=None, max_length=100)
 
 
 KINDS = {
     "reply_email",
     "reply_teams",
     "create_event",
+    "update_event",
     "create_task",
     "update_task",
     "complete_task",
@@ -50,10 +60,14 @@ def validate_payload(kind, payload):
         parsed = Payload(**payload).model_dump(exclude_none=True)
     except ValidationError as exc:
         raise ValueError("Ungültige Aktionsdaten: " + str(exc)) from exc
+    # Explicitly clearing a CRM due date differs from leaving it unchanged.
+    if payload.get("crm_updated_at") and "due" in payload and payload["due"] is None:
+        parsed["due"] = None
     required = {
         "reply_email": ["source_id", "item_id", "body", "recipient"],
         "reply_teams": ["source_id", "item_id", "body", "recipient"],
         "create_event": ["source_id", "subject", "start", "end"],
+        "update_event": ["source_id", "item_id", "subject", "start", "end"],
         "create_task": ["title"],
         "update_task": ["source_id", "item_id", "title"],
         "complete_task": ["source_id", "item_id"],
@@ -63,7 +77,7 @@ def validate_payload(kind, payload):
         raise ValueError("Erforderliche Angaben fehlen: " + ", ".join(required))
     if parsed.get("due"):
         datetime.fromisoformat(parsed["due"])
-    if kind == "create_event":
+    if kind in {"create_event", "update_event"}:
         start, end = (
             datetime.fromisoformat(parsed["start"].replace("Z", "+00:00")),
             datetime.fromisoformat(parsed["end"].replace("Z", "+00:00")),
@@ -101,10 +115,11 @@ def check_target(db, proposal):
     expected = {
         "reply_email": {"mail"},
         "reply_teams": {"chat", "channel"},
-        "create_event": {"calendar"},
-        "create_task": {"todo"},
-        "update_task": {"todo"},
-        "complete_task": {"todo"},
+        "create_event": {"calendar", "crm_event"},
+        "update_event": {"crm_event"},
+        "create_task": {"todo"} | TASK_KINDS,
+        "update_task": {"todo"} | TASK_KINDS,
+        "complete_task": {"todo"} | TASK_KINDS,
     }
     if source.kind not in expected.get(proposal.kind, set()):
         raise HTTPException(400, "Aktion und Zielquelle passen nicht zusammen.")
@@ -120,6 +135,10 @@ def check_target(db, proposal):
             )
         if proposal.kind == "reply_teams" and payload.get("recipient") != source.name:
             raise HTTPException(400, "Der Zielchat wurde verändert.")
+    if source.kind in CRM_TYPES:
+        from app.integrations.crm.actions import validate_target
+
+        validate_target(db, source, proposal)
     return source
 
 
@@ -211,6 +230,17 @@ def execute(db, proposal_id):
     db.commit()
     graph = None
     try:
+        if source.kind in CRM_TYPES:
+            from app.integrations.crm.actions import execute as execute_crm
+
+            proposal.result = execute_crm(db, source, proposal)
+            proposal.status = "done"
+            source.next_sync = now()
+            enqueue(db, "sync", {"source_id": source.id}, f"sync:{source.id}")
+            audit(
+                db, "action.executed", proposal_id=proposal.id, result=proposal.result
+            )
+            return
         graph = Graph(db, WRITE_SCOPES[source.kind])
         item = db.get(Item, payload.get("item_id")) if payload.get("item_id") else None
         if proposal.kind == "reply_email":
@@ -297,9 +327,11 @@ def execute(db, proposal_id):
             )
             result = graph.request(
                 "POST" if proposal.kind == "create_task" else "PATCH",
-                base
-                if proposal.kind == "create_task"
-                else base + "/" + q(item.external_id),
+                (
+                    base
+                    if proposal.kind == "create_task"
+                    else base + "/" + q(item.external_id)
+                ),
                 data,
                 extra_headers=headers,
             )
@@ -311,7 +343,7 @@ def execute(db, proposal_id):
             },
         )
         source.next_sync = now()
-    except GraphError as exc:
+    except (GraphError, CrmError) as exc:
         proposal.status = (
             "failed"
             if 400 <= exc.status < 500 and exc.status not in {408, 429}
@@ -322,7 +354,7 @@ def execute(db, proposal_id):
         proposal.status, proposal.result = (
             "unknown",
             {
-                "error": "Ergebnis unklar. Bitte zuerst direkt bei Microsoft prüfen; kein automatischer Wiederholungsversuch."
+                "error": "Ergebnis unklar. Bitte zuerst direkt im Zielsystem prüfen; kein automatischer Wiederholungsversuch."
             },
         )
     finally:

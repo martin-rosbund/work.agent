@@ -4,6 +4,7 @@ import { api, Source, Proposal } from "../../api";
 import { actionLabels, localDateTime } from "../../shared/presentation";
 import { useNotice } from "../../shared/notifications";
 import { Button, Markdown, Modal } from "../../shared/ui";
+import { CrmFields } from "./CrmFields";
 
 export function ProposalEditor({
   proposal,
@@ -21,6 +22,10 @@ export function ProposalEditor({
     [busy, setBusy] = useState(false),
     [original, setOriginal] = useState("");
   const notice = useNotice();
+  const targetKind =
+    targets.find((s) => s.id === payload.source_id)?.kind || "";
+  const isCrm = targetKind.startsWith("crm_");
+  const isEvent = ["create_event", "update_event"].includes(proposal.kind);
   useEffect(() => {
     if (!sources.length) api<Source[]>("/sources").then(setTargets);
     if (payload.item_id && proposal.kind === "knowledge")
@@ -60,14 +65,30 @@ export function ProposalEditor({
           <input value={payload.recipient} readOnly />
         </label>
       )}
-      {["create_task", "update_task", "create_event"].includes(
-        proposal.kind,
-      ) && (
+      {[
+        "create_task",
+        "update_task",
+        "create_event",
+        "update_event",
+        "complete_task",
+      ].includes(proposal.kind) && (
         <label>
           Ziel
           <select
             value={payload.source_id || ""}
-            onChange={(e) => change("source_id", e.target.value || null)}
+            disabled={["update_task", "complete_task", "update_event"].includes(
+              proposal.kind,
+            )}
+            onChange={(e) =>
+              setPayload((p) => ({
+                ...Object.fromEntries(
+                  Object.entries(p).filter(([k]) => !k.startsWith("crm_")),
+                ),
+                source_id: e.target.value || null,
+                attendees: [],
+                due: null,
+              }))
+            }
           >
             {proposal.kind === "create_task" && (
               <option value="">Nur in meinem Arbeitsraum</option>
@@ -77,8 +98,10 @@ export function ProposalEditor({
                 (s) =>
                   s.enabled &&
                   s.writable &&
-                  s.kind ===
-                    (proposal.kind === "create_event" ? "calendar" : "todo"),
+                  (isEvent
+                    ? ["calendar", "crm_event"]
+                    : ["todo", "crm_effort", "crm_office", "crm_sales"]
+                  ).includes(s.kind),
               )
               .map((s) => (
                 <option key={s.id} value={s.id}>
@@ -87,6 +110,14 @@ export function ProposalEditor({
               ))}
           </select>
         </label>
+      )}
+      {isCrm && (
+        <CrmFields
+          kind={targetKind}
+          action={proposal.kind}
+          payload={payload}
+          change={change}
+        />
       )}
       {["create_task", "update_task", "knowledge"].includes(proposal.kind) && (
         <label>
@@ -97,7 +128,7 @@ export function ProposalEditor({
           />
         </label>
       )}
-      {proposal.kind === "create_event" && (
+      {isEvent && (
         <>
           <label>
             Betreff
@@ -142,33 +173,36 @@ export function ProposalEditor({
               />
             </label>
           </div>
-          <label>
-            Teilnehmer (E-Mail-Adressen, durch Komma getrennt)
-            <input
-              value={(payload.attendees || []).join(", ")}
-              onChange={(e) =>
-                change(
-                  "attendees",
-                  e.target.value
-                    .split(",")
-                    .map((x) => x.trim())
-                    .filter(Boolean),
-                )
-              }
-            />
-          </label>
+          {!isCrm && (
+            <label>
+              Teilnehmer (E-Mail-Adressen, durch Komma getrennt)
+              <input
+                value={(payload.attendees || []).join(", ")}
+                onChange={(e) =>
+                  change(
+                    "attendees",
+                    e.target.value
+                      .split(",")
+                      .map((x) => x.trim())
+                      .filter(Boolean),
+                  )
+                }
+              />
+            </label>
+          )}
         </>
       )}
-      {["create_task", "update_task"].includes(proposal.kind) && (
-        <label>
-          Fällig am
-          <input
-            type="date"
-            value={(payload.due || "").slice(0, 10)}
-            onChange={(e) => change("due", e.target.value || null)}
-          />
-        </label>
-      )}
+      {targetKind !== "crm_office" &&
+        ["create_task", "update_task"].includes(proposal.kind) && (
+          <label>
+            Fällig am
+            <input
+              type="date"
+              value={(payload.due || "").slice(0, 10)}
+              onChange={(e) => change("due", e.target.value || null)}
+            />
+          </label>
+        )}
       {proposal.kind === "knowledge" && original && (
         <div className="old-version">
           <div className="eyebrow">BISHERIGE FASSUNG</div>

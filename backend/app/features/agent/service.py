@@ -189,7 +189,11 @@ def context_for(db, query, items, background=False):
             "item_id": item.id,
             "title": item.title,
             "kind": item.kind,
-            "text": item.body[:16000],
+            "text": (
+                item.body[-16000:]
+                if item.meta.get("teams_conversation")
+                else item.body[:16000]
+            ),
             "locator": "Original",
             "version": item.version,
         }
@@ -329,7 +333,16 @@ def analyze(db, item_id, background=False):
         ]
     else:
         context = context_for(
-            db, item.title + "\n" + item.body[:6000], [item], background
+            db,
+            item.title
+            + "\n"
+            + (
+                item.body[-6000:]
+                if item.meta.get("teams_conversation")
+                else item.body[:6000]
+            ),
+            [item],
+            background,
         )
         schema = (
             "Antworte ausschließlich als JSON mit summary (String) und optional den folgenden Vorschlägen nach diesem JSON-Schema: "
@@ -377,39 +390,75 @@ def draft_proposals(db, result, conversation, item, context):
                 },
             )
         )
+    from app.integrations.crm.mapping import TASK_KINDS
+
     todos = list(
         db.scalars(
             select(Source).where(
-                Source.kind == "todo",
+                Source.kind.in_({"todo"} | TASK_KINDS),
                 Source.enabled.is_(True),
                 Source.writable.is_(True),
+                Source.status.not_in(["forbidden", "reauth"]),
             )
         )
     )
     calendars = list(
         db.scalars(
             select(Source).where(
-                Source.kind == "calendar",
+                Source.kind.in_({"calendar", "crm_event"}),
                 Source.enabled.is_(True),
                 Source.writable.is_(True),
+                Source.status.not_in(["forbidden", "reauth"]),
             )
         )
     )
     for task in result.get("tasks", [])[:5]:
+        requested = task.get("target", "auto")
+        target = next(
+            (
+                s
+                for s in todos
+                if s.kind == ("todo" if requested == "auto" else requested)
+            ),
+            None,
+        )
+        if requested not in {"auto", "local"} and not target:
+            continue
         candidates.append(
             (
                 "create_task",
                 {
                     "title": str(task["title"]),
                     "body": str(task.get("body", "")),
-                    "due": task.get("due"),
-                    "source_id": todos[0].id if todos else None,
+                    "due": (
+                        None
+                        if target and target.kind == "crm_office"
+                        else task.get("due")
+                    ),
+                    "source_id": target.id if target else None,
                 },
             )
         )
     for entry in result.get("events", [])[:3]:
-        if calendars:
-            candidates.append(("create_event", {**entry, "source_id": calendars[0].id}))
+        requested = entry.get("target", "auto")
+        target = next(
+            (
+                s
+                for s in calendars
+                if s.kind == ("calendar" if requested == "auto" else requested)
+            ),
+            None,
+        )
+        if target:
+            candidates.append(
+                (
+                    "create_event",
+                    {
+                        **{k: v for k, v in entry.items() if k != "target"},
+                        "source_id": target.id,
+                    },
+                )
+            )
     for note in result.get("knowledge", [])[:3]:
         payload = {"title": str(note["title"]), "content": str(note["content"])}
         if note.get("item_id"):
@@ -427,7 +476,11 @@ def draft_proposals(db, result, conversation, item, context):
             continue
         task = visible_item(db, update["item_id"], ai=True)
         target = db.get(Source, task.source_id)
-        if task.kind != "task" or target.kind != "todo" or not target.writable:
+        if (
+            task.kind != "task"
+            or target.kind not in ({"todo"} | TASK_KINDS)
+            or not target.writable
+        ):
             continue
         payload = {
             "item_id": task.id,
@@ -436,6 +489,10 @@ def draft_proposals(db, result, conversation, item, context):
             "body": update.get("body", task.body),
             "due": update.get("due"),
         }
+        if target.kind in TASK_KINDS:
+            payload["crm_updated_at"] = task.meta.get("crm_updated_at")
+            if target.kind == "crm_office":
+                payload.pop("due", None)
         candidates.append(
             ("complete_task" if update["completed"] else "update_task", payload)
         )

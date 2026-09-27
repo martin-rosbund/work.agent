@@ -126,6 +126,15 @@ class ItemMetadata(BaseModel):
     end: SourceTime | None = None
     due: SourceTime | str | None = None
     citations: list[Citation] = Field(default_factory=list)
+    crm_entity: str | None = None
+    crm_updated_at: str | None = None
+    crm_status: str | None = None
+    crm_status_label: str | None = None
+    crm_fields: dict[str, str] = Field(default_factory=dict)
+    recurrence: str | None = None
+    latest_message: str | None = None
+    teams_conversation: bool = False
+    message_count: int | None = None
 
 
 class ActionPayload(BaseModel):
@@ -142,6 +151,13 @@ class ActionPayload(BaseModel):
     end: str | None = None
     attendees: list[str] = Field(default_factory=list)
     expected_version: int | None = None
+    crm_updated_at: str | None = None
+    crm_status: str | None = None
+    crm_category: str | None = None
+    crm_type: str | None = None
+    crm_forecast: str | None = None
+    crm_origin: str | None = None
+    crm_loss_reason: str | None = None
 
 
 class ActionResult(BaseModel):

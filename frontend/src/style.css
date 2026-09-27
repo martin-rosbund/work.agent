@@ -3667,3 +3667,23 @@ main {
     display: none;
   }
 }
+.teams-history {
+  display: grid;
+  gap: 12px;
+}
+.teams-message {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-right: 24px;
+}
+.teams-message.outgoing {
+  margin-right: 0;
+  margin-left: 24px;
+  background: var(--mint);
+}
+.teams-message p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 8px 0 0;
+}
