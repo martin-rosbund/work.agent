@@ -551,6 +551,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/conversations/{conversation_id}/archive": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Archive Conversation */
+    patch: operations["archive_conversation_api_v1_conversations__conversation_id__archive_patch"];
+    trace?: never;
+  };
   "/api/v1/conversations/{conversation_id}": {
     parameters: {
       query?: never;
@@ -562,7 +579,8 @@ export interface paths {
     get: operations["conversation_detail_api_v1_conversations__conversation_id__get"];
     put?: never;
     post?: never;
-    delete?: never;
+    /** Delete Conversation */
+    delete: operations["delete_conversation_api_v1_conversations__conversation_id__delete"];
     options?: never;
     head?: never;
     /** Link Conversation */
@@ -1010,6 +1028,8 @@ export interface components {
       crm_origin?: string | null;
       /** Crm Loss Reason */
       crm_loss_reason?: string | null;
+      /** Crm Priority */
+      crm_priority?: string | null;
     } & {
       [key: string]: unknown;
     };
@@ -1070,6 +1090,11 @@ export interface components {
       paused: boolean;
       /** Allowed Actions */
       allowed_actions: string[];
+    };
+    /** ArchiveInput */
+    ArchiveInput: {
+      /** Archived */
+      archived: boolean;
     };
     /** AuditView */
     AuditView: {
@@ -1315,6 +1340,11 @@ export interface components {
       id: string;
       /** Title */
       title: string;
+      /**
+       * Archived
+       * @default false
+       */
+      archived: boolean;
       /** Item Ids */
       item_ids: string[];
       /** Thread Key */
@@ -1409,6 +1439,11 @@ export interface components {
        * @default []
        */
       loss_reasons: components["schemas"]["CrmChoice"][];
+      /**
+       * Priorities
+       * @default []
+       */
+      priorities: components["schemas"]["CrmChoice"][];
     };
     /** DiscoveryEntry */
     DiscoveryEntry: {
@@ -3136,7 +3171,9 @@ export interface operations {
   };
   conversations_api_v1_conversations_get: {
     parameters: {
-      query?: never;
+      query?: {
+        archived?: boolean;
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -3152,6 +3189,15 @@ export interface operations {
           "application/json": components["schemas"]["ConversationView"][];
         };
       };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
     };
   };
   create_conversation_api_v1_conversations_post: {
@@ -3164,6 +3210,41 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["ConversationInput"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ConversationView"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  archive_conversation_api_v1_conversations__conversation_id__archive_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ArchiveInput"];
       };
     };
     responses: {
@@ -3205,6 +3286,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ConversationDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_conversation_api_v1_conversations__conversation_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Ok"];
         };
       };
       /** @description Validation Error */

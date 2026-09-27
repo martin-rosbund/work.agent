@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from app import ai
+from app.core.events import event
 from app.models import (
     Conversation,
     Item,
@@ -21,11 +22,11 @@ from .schemas import ChatInput, ConversationInput
 PREFIX = "/api/v1"
 
 
-def conversations(session=None, db=None):
+def conversations(session=None, db=None, archived=False):
     return [
         serialize(c)
         for c in db.scalars(
-            select(Conversation).order_by(Conversation.created_at.desc())
+            select(Conversation).where(Conversation.archived == archived).order_by(Conversation.created_at.desc())
         )
     ]
 
@@ -38,6 +39,8 @@ def create_conversation(body: ConversationInput, session=None, db=None):
             select(Conversation).where(Conversation.thread_key == thread)
         )
         if existing:
+            existing.archived = False
+            db.commit()
             return serialize(existing)
     row = Conversation(
         title=linked[0].title if linked else body.title,
@@ -105,14 +108,41 @@ def conversation_detail(conversation_id: str, session=None, db=None):
 
 
 def chat_message(conversation_id: str, body: ChatInput, session=None, db=None):
-    conversation = db.get(Conversation, conversation_id)
+    conversation = db.scalar(select(Conversation).where(Conversation.id == conversation_id).with_for_update())
     if not conversation:
         raise HTTPException(404, "Chat nicht gefunden.")
+    if conversation.archived:
+        raise HTTPException(409, "Bitte den Chat zuerst wiederherstellen.")
     ai.conversation_items(db, conversation)
     existing = db.scalar(select(Job).where(Job.dedupe_key == f"chat:{conversation_id}"))
     if existing:
         raise HTTPException(409, "In diesem Chat läuft bereits eine Antwort.")
     db.add(Message(conversation_id=conversation_id, role="user", content=body.content))
     enqueue(db, "chat", {"conversation_id": conversation_id}, f"chat:{conversation_id}")
+    db.commit()
+    return {"ok": True}
+
+
+def archive_conversation(conversation_id, archived, db):
+    row = db.get(Conversation, conversation_id)
+    if not row:
+        raise HTTPException(404, "Chat nicht gefunden.")
+    row.archived = archived
+    event(db, "conversation.updated", conversation_id=row.id)
+    db.commit()
+    return serialize(row)
+
+
+def delete_conversation(conversation_id, db):
+    row = db.scalar(select(Conversation).where(Conversation.id == conversation_id).with_for_update())
+    if not row:
+        raise HTTPException(404, "Chat nicht gefunden.")
+    has_messages = db.scalar(select(Message.id).where(Message.conversation_id == row.id).limit(1))
+    has_proposals = db.scalar(select(Proposal.id).where(Proposal.conversation_id == row.id).limit(1))
+    has_job = db.scalar(select(Job.id).where(Job.dedupe_key == f"chat:{row.id}").limit(1))
+    if has_messages or has_proposals or has_job:
+        raise HTTPException(409, "Chats mit Nachrichten oder Vorschlägen können nur archiviert werden.")
+    db.delete(row)
+    event(db, "conversation.deleted", conversation_id=conversation_id)
     db.commit()
     return {"ok": True}

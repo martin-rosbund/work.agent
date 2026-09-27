@@ -28,3 +28,4 @@ class CrmOptionsView(BaseModel):
     forecasts: list[CrmChoice] = []
     origins: list[CrmChoice] = []
     loss_reasons: list[CrmChoice] = []
+    priorities: list[CrmChoice] = []

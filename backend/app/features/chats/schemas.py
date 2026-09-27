@@ -10,6 +10,10 @@ class ChatInput(BaseModel):
     content: str = Field(min_length=1, max_length=20000)
 
 
+class ArchiveInput(BaseModel):
+    archived: bool
+
+
 class EmailReplyDraftInput(BaseModel):
     message_id: str
     item_id: str

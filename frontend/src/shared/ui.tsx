@@ -29,6 +29,7 @@ export function Icon({ kind, size = 18 }: { kind: string; size?: number }) {
                 "crm_effort",
                 "crm_office",
                 "crm_sales",
+                "crm_ticket",
               ].includes(kind)
             ? CheckCheck
             : kind === "knowledge"

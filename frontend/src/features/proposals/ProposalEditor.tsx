@@ -100,7 +100,13 @@ export function ProposalEditor({
                   s.writable &&
                   (isEvent
                     ? ["calendar", "crm_event"]
-                    : ["todo", "crm_effort", "crm_office", "crm_sales"]
+                    : [
+                        "todo",
+                        "crm_effort",
+                        "crm_office",
+                        "crm_sales",
+                        "crm_ticket",
+                      ]
                   ).includes(s.kind),
               )
               .map((s) => (
@@ -197,9 +203,24 @@ export function ProposalEditor({
           <label>
             Fällig am
             <input
-              type="date"
-              value={(payload.due || "").slice(0, 10)}
-              onChange={(e) => change("due", e.target.value || null)}
+              type={targetKind === "crm_ticket" ? "datetime-local" : "date"}
+              value={
+                targetKind === "crm_ticket"
+                  ? localDateTime(payload.due)
+                  : (payload.due || "").slice(0, 10)
+              }
+              onChange={(e) =>
+                change(
+                  "due",
+                  e.target.value
+                    ? targetKind === "crm_ticket"
+                      ? DateTime.fromISO(e.target.value, {
+                          zone: "Europe/Berlin",
+                        }).toISO()
+                      : e.target.value
+                    : null,
+                )
+              }
             />
           </label>
         )}

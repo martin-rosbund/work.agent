@@ -1374,17 +1374,39 @@
         ],
         "summary": "Conversations",
         "operationId": "conversations_api_v1_conversations_get",
+        "parameters": [
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Archived"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/ConversationView"
                   },
-                  "type": "array",
                   "title": "Response Conversations Api V1 Conversations Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1398,14 +1420,66 @@
         "summary": "Create Conversation",
         "operationId": "create_conversation_api_v1_conversations_post",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ConversationInput"
               }
             }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationView"
+                }
+              }
+            }
           },
-          "required": true
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/archive": {
+      "patch": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Archive Conversation",
+        "operationId": "archive_conversation_api_v1_conversations__conversation_id__archive_patch",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveInput"
+              }
+            }
+          }
         },
         "responses": {
           "200": {
@@ -1432,6 +1506,46 @@
       }
     },
     "/api/v1/conversations/{conversation_id}": {
+      "delete": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Delete Conversation",
+        "operationId": "delete_conversation_api_v1_conversations__conversation_id__delete",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "chats"
@@ -2984,6 +3098,17 @@
               }
             ],
             "title": "Crm Loss Reason"
+          },
+          "crm_priority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crm Priority"
           }
         },
         "additionalProperties": true,
@@ -3148,6 +3273,19 @@
           "allowed_actions"
         ],
         "title": "AgentSettings"
+      },
+      "ArchiveInput": {
+        "properties": {
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          }
+        },
+        "type": "object",
+        "required": [
+          "archived"
+        ],
+        "title": "ArchiveInput"
       },
       "AuditView": {
         "properties": {
@@ -3798,6 +3936,11 @@
             "type": "string",
             "title": "Title"
           },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "default": false
+          },
           "item_ids": {
             "items": {
               "type": "string"
@@ -3958,6 +4101,14 @@
             },
             "type": "array",
             "title": "Loss Reasons",
+            "default": []
+          },
+          "priorities": {
+            "items": {
+              "$ref": "#/components/schemas/CrmChoice"
+            },
+            "type": "array",
+            "title": "Priorities",
             "default": []
           }
         },

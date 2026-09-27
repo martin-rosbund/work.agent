@@ -2,7 +2,7 @@
 
 Persönlicher Arbeitsraum für Microsoft 365, ISB.CRM, KI-Arbeitschats und ein versioniertes Wissensarchiv. React/TypeScript und FastAPI sind getrennte Anwendungen; PostgreSQL, pgvector und ein eigener Worker halten Daten und Verarbeitung lokal.
 
-ISB.CRM wird mit einem persönlichen API-Key als eigene Verbindung eingerichtet. Kalender, Aufwandsschätzungen, Office Tasks und Verkaufschancen bleiben getrennte Quellen mit dynamischen CRM-Statuswerten. Einrichtung, Freigaben und Synchronisierungsumfang: [CRM-Anleitung](docs/CRM.md).
+ISB.CRM wird mit einem persönlichen API-Key als eigene Verbindung eingerichtet. Kalender, Aufwandsschätzungen, Office Tasks, Verkaufschancen und CRM-Tickets bleiben getrennte Quellen mit dynamischen CRM-Statuswerten. Einrichtung, Freigaben und Synchronisierungsumfang: [CRM-Anleitung](docs/CRM.md).
 
 ## Schnellstart unter Windows
 

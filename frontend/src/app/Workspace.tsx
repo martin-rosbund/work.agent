@@ -66,6 +66,7 @@ export function App() {
     [toast, setToast] = useState<{ text: string; error: boolean } | null>(null),
     [sources, setSources] = useState<Source[]>([]),
     [items, setItems] = useState<Item[]>([]),
+    [githubOpenCount, setGithubOpenCount] = useState(0),
     [itemPages, setItemPages] = useState(1),
     [hasMore, setHasMore] = useState(false),
     [loadingItems, setLoadingItems] = useState(false),
@@ -137,6 +138,25 @@ export function App() {
       cancelled = true;
     };
   }, [auth, revision, itemPages]);
+  useEffect(() => {
+    if (!auth?.authenticated) {
+      setGithubOpenCount(0);
+      return;
+    }
+    let cancelled = false;
+    api<import("../api/generated").components["schemas"]["IssuePage"]>(
+      "/github/issues?state=open&limit=1",
+    )
+      .then((page) => {
+        if (!cancelled) setGithubOpenCount(page.total);
+      })
+      .catch(() => {
+        if (!cancelled) setGithubOpenCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [auth?.authenticated, revision]);
   useEffect(() => {
     if (!auth?.authenticated) return;
     let cursor = 0;
@@ -215,7 +235,7 @@ export function App() {
     ],
     ["calendar", "Kalender", CalendarDays, 0],
     ["knowledge", "Wissen", BookOpen, 0],
-    ["github", "GitHub", Github, 0],
+    ["github", "GitHub", Github, githubOpenCount],
   ] as const;
   if (!auth)
     return (
@@ -467,6 +487,7 @@ export function App() {
               ) : route === "github" ? (
                 <GitHubPage
                   revision={revision}
+                  onChange={refresh}
                   openChat={(id) => {
                     setConversation(id);
                     navigate("chats");

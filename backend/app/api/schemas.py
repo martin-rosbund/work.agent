@@ -158,6 +158,7 @@ class ActionPayload(BaseModel):
     crm_forecast: str | None = None
     crm_origin: str | None = None
     crm_loss_reason: str | None = None
+    crm_priority: str | None = None
 
 
 class ActionResult(BaseModel):
@@ -248,6 +249,7 @@ class KnowledgeVersionView(BaseModel):
 class ConversationView(BaseModel):
     id: str
     title: str
+    archived: bool = False
     item_ids: list[str]
     thread_key: str | None = None
     created_at: datetime

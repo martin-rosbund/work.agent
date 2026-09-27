@@ -18,6 +18,7 @@ export const labels: Record<string, string> = {
   crm_effort: "Aufwandsschätzung",
   crm_office: "Office Task",
   crm_sales: "Verkaufschance",
+  crm_ticket: "CRM-Ticket",
 };
 
 export const actionLabels: Record<string, string> = {

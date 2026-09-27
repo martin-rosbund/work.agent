@@ -110,6 +110,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     title: Mapped[str] = mapped_column(Text)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     item_ids: Mapped[list] = mapped_column(JSON, default=list)
     thread_key: Mapped[str | None] = mapped_column(
         String(1000), nullable=True, unique=True

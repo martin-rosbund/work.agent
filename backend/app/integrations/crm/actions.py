@@ -1,6 +1,8 @@
 """Only invoked by the approved proposal executor."""
 
 from app.models import Item
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from app.services import setting
 from .client import CRM, CrmError, check_connection
 from .mapping import TYPES, handle, personal_filter, status_closed
@@ -75,10 +77,17 @@ def execute(db, source, proposal):
             }
             if spec.get("due") and "due" in p:
                 data[spec["due"]] = p["due"][:10] if p["due"] else None
+                if source.kind == "crm_ticket" and p["due"]:
+                    due = datetime.fromisoformat(p["due"].replace("Z", "+00:00"))
+                    if not due.tzinfo:
+                        due = due.replace(tzinfo=ZoneInfo("Europe/Berlin"))
+                    data[spec["due"]] = due.isoformat()
             if source.kind == "crm_event":
                 data.update(startDate=p["start"], endDate=p["end"])
             if not item:
                 data[spec["owner"]] = setting(db, "crm")["person"]
+                if source.kind == "crm_ticket":
+                    data["startDate"] = datetime.now(timezone.utc).isoformat()
                 if source.kind == "crm_event":
                     data.update(
                         sendCalendarInvitations=False,
@@ -104,14 +113,16 @@ def execute(db, source, proposal):
             "crm_forecast": "forecast",
             "crm_origin": "source",
             "crm_loss_reason": "lossReason",
+            "crm_priority": "priority",
         }.items():
             if p.get(key):
                 allowed = {
-                    "crm_category": {"crm_event", "crm_office"},
-                    "crm_type": {"crm_event", "crm_sales"},
+                    "crm_category": {"crm_event", "crm_office", "crm_ticket"},
+                    "crm_type": {"crm_event", "crm_sales", "crm_ticket"},
                     "crm_forecast": {"crm_sales"},
-                    "crm_origin": {"crm_sales"},
+                    "crm_origin": {"crm_sales", "crm_ticket"},
                     "crm_loss_reason": {"crm_sales"},
+                    "crm_priority": {"crm_ticket"},
                 }
                 if source.kind not in allowed[key]:
                     raise CrmError(

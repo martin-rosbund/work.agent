@@ -95,6 +95,7 @@ export function TasksPage({
                     "crm_effort",
                     "crm_office",
                     "crm_sales",
+                    "crm_ticket",
                   ].includes(s.kind),
                 )
                 .map((s) => (
@@ -187,10 +188,15 @@ export function TasksPage({
                         body: item.body,
                         crm_updated_at: item.meta.crm_updated_at,
                         crm_status: item.meta.crm_status,
-                        due: (typeof item.meta.due === "string"
-                          ? item.meta.due
-                          : item.meta.due?.dateTime
-                        )?.slice(0, 10),
+                        due:
+                          item.source_kind === "crm_ticket"
+                            ? typeof item.meta.due === "string"
+                              ? item.meta.due
+                              : item.meta.due?.dateTime
+                            : (typeof item.meta.due === "string"
+                                ? item.meta.due
+                                : item.meta.due?.dateTime
+                              )?.slice(0, 10),
                       },
                       version: 1,
                       status: "draft",

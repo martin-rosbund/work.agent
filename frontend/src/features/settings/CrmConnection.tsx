@@ -53,7 +53,7 @@ export function CrmConnection({ refresh }: { refresh: () => void }) {
       <div className="settings-title">
         <div>
           <h2>ISB.CRM</h2>
-          <p>Dein Kalender und drei getrennte Aufgabenbereiche.</p>
+          <p>Dein Kalender und vier getrennte Aufgabenbereiche.</p>
         </div>
         <Badge kind={connection?.configured ? "green" : ""}>
           {connection?.configured ? "Verbunden" : "Einrichten"}
@@ -62,7 +62,7 @@ export function CrmConnection({ refresh }: { refresh: () => void }) {
       <p className="settings-copy">
         Persönlichen API-Key im CRM erstellen. Es werden deine zugewiesenen
         Events, Aufwandsschätzungen, Office Tasks (interne Vorgänge) und
-        Verkaufschancen synchronisiert.
+        Verkaufschancen sowie CRM-Tickets synchronisiert.
       </p>
       <label>
         CRM-Adresse

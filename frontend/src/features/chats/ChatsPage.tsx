@@ -9,6 +9,9 @@ import {
   Send,
   ShieldCheck,
   LoaderCircle,
+  Archive,
+  ArchiveRestore,
+  Trash2,
 } from "lucide-react";
 import { api, Item, Proposal } from "../../api";
 import { labels, fmt } from "../../shared/presentation";
@@ -32,12 +35,15 @@ export function ChatsPage({
   allItems,
 }: {
   selected: string | null;
-  select: (id: string) => void;
+  select: (id: string | null) => void;
   revision: number;
   openItem: (id: string, locator?: string, version?: number) => void;
   allItems: Item[];
 }) {
   const [chats, setChats] = useState<any[]>([]),
+    [archived, setArchived] = useState(false),
+    [version, setVersion] = useState(0),
+    [changing, setChanging] = useState(false),
     [detail, setDetail] = useState<any>(null),
     [input, setInput] = useState(""),
     [stream, setStream] = useState(""),
@@ -46,6 +52,7 @@ export function ChatsPage({
     [linkId, setLinkId] = useState("");
   const notice = useNotice(),
     bottom = useRef<HTMLDivElement>(null);
+  const request = useRef(0);
   const [replyMessage, setReplyMessage] = useState<{
     id: string;
     content: string;
@@ -54,17 +61,26 @@ export function ChatsPage({
     (item: Item) => item.kind === "mail" && item.available,
   );
   const load = () => {
-    api<any[]>("/conversations")
-      .then(setChats)
+    const current = ++request.current;
+    api<any[]>(`/conversations?archived=${archived}`)
+      .then((rows) => {
+        if (current === request.current) setChats(rows);
+      })
       .catch((e) => notice(e.message, true));
     if (selected)
       api("/conversations/" + selected)
-        .then(setDetail)
+        .then((data) => {
+          if (current === request.current) setDetail(data);
+        })
         .catch((e) => notice(e.message, true));
+    else setDetail(null);
   };
   useEffect(() => {
     load();
-  }, [selected, revision]);
+    return () => {
+      request.current++;
+    };
+  }, [selected, revision, archived, version]);
   useEffect(() => {
     if (!selected && chats.length) select(chats[0].id);
   }, [chats]);
@@ -72,6 +88,8 @@ export function ChatsPage({
     setStream("");
     setSending(false);
     setReplyMessage(null);
+    setDetail(null);
+    setInput("");
   }, [selected]);
   useEffect(() => {
     const listen = (event: Event) => {
@@ -89,7 +107,7 @@ export function ChatsPage({
     };
     window.addEventListener("workagent-event", listen);
     return () => window.removeEventListener("workagent-event", listen);
-  }, [selected]);
+  }, [selected, archived]);
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [detail?.messages?.length, stream]);
@@ -116,6 +134,34 @@ export function ChatsPage({
       notice((e as Error).message, true);
     }
   }
+  async function manageChat(remove = false) {
+    if (!selected || changing) return;
+    setChanging(true);
+    try {
+      await api(
+        `/conversations/${selected}${remove ? "" : "/archive"}`,
+        remove ? "DELETE" : "PATCH",
+        remove ? undefined : { archived: !detail.conversation.archived },
+      );
+      request.current++;
+      setDetail(null);
+      setChats([]);
+      select(null);
+      setVersion((value) => value + 1);
+      notice(
+        remove
+          ? "Leerer Arbeitschat gelöscht."
+          : detail.conversation.archived
+            ? "Arbeitschat wiederhergestellt."
+            : "Arbeitschat archiviert.",
+      );
+    } catch (e) {
+      notice((e as Error).message, true);
+      load();
+    } finally {
+      setChanging(false);
+    }
+  }
   return (
     <>
       <PageHeader
@@ -125,6 +171,23 @@ export function ChatsPage({
       />
       <div className="chat-layout">
         <div className="chat-list">
+          <label className="chat-list-filter">
+            Ansicht
+            <select
+              aria-label="Arbeitschats anzeigen"
+              value={archived ? "archived" : "active"}
+              onChange={(e) => {
+                request.current++;
+                setChats([]);
+                setDetail(null);
+                select(null);
+                setArchived(e.target.value === "archived");
+              }}
+            >
+              <option value="active">Aktive Arbeitschats</option>
+              <option value="archived">Archivierte Arbeitschats</option>
+            </select>
+          </label>
           <div className="list-section-label">
             VORGÄNGE <span>{chats.length}</span>
           </div>
@@ -146,8 +209,9 @@ export function ChatsPage({
           ))}
           {!chats.length && (
             <p className="padded muted-text">
-              Öffne einen Vorgang aus dem Eingang oder starte einen neuen
-              Arbeitschat.
+              {archived
+                ? "Keine archivierten Arbeitschats."
+                : "Öffne einen Vorgang aus dem Eingang oder starte einen neuen Arbeitschat."}
             </p>
           )}
         </div>
@@ -168,6 +232,21 @@ export function ChatsPage({
                 <Button onClick={() => setLink(true)}>
                   <Link2 size={15} /> Verknüpfen
                 </Button>
+                {detail.conversation.archived ? (
+                  <Button disabled={changing} onClick={() => manageChat()}>
+                    <ArchiveRestore size={15} /> Wiederherstellen
+                  </Button>
+                ) : detail.messages.length ||
+                  detail.proposals.length ||
+                  sending ? (
+                  <Button disabled={changing} onClick={() => manageChat()}>
+                    <Archive size={15} /> Archivieren
+                  </Button>
+                ) : (
+                  <Button disabled={changing} onClick={() => manageChat(true)}>
+                    <Trash2 size={15} /> Leeren Chat löschen
+                  </Button>
+                )}
               </div>
               <div className="chat-scroll">
                 <div className="linked-items">
@@ -293,34 +372,36 @@ export function ChatsPage({
                 )}
                 <div ref={bottom} />
               </div>
-              <form className="chat-composer" onSubmit={send}>
-                <textarea
-                  aria-label="Nachricht an den Agenten"
-                  placeholder="Nachfragen, gemeinsam formulieren, weiterdenken …"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      send(e);
-                    }
-                  }}
-                />
-                <div>
-                  <span>
-                    <ShieldCheck size={13} /> Aktionen werden erst nach deiner
-                    Freigabe ausgeführt.
-                  </span>
-                  <Button
-                    kind="primary"
-                    type="submit"
-                    disabled={!input.trim() || sending}
-                  >
-                    <Send size={16} />
-                    <span>Senden</span>
-                  </Button>
-                </div>
-              </form>
+              {!detail.conversation.archived && (
+                <form className="chat-composer" onSubmit={send}>
+                  <textarea
+                    aria-label="Nachricht an den Agenten"
+                    placeholder="Nachfragen, gemeinsam formulieren, weiterdenken …"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        send(e);
+                      }
+                    }}
+                  />
+                  <div>
+                    <span>
+                      <ShieldCheck size={13} /> Aktionen werden erst nach deiner
+                      Freigabe ausgeführt.
+                    </span>
+                    <Button
+                      kind="primary"
+                      type="submit"
+                      disabled={!input.trim() || sending}
+                    >
+                      <Send size={16} />
+                      <span>Senden</span>
+                    </Button>
+                  </div>
+                </form>
+              )}
             </>
           )}
         </div>

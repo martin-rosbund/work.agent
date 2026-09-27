@@ -39,6 +39,7 @@ class Payload(BaseModel):
     crm_forecast: str | None = Field(default=None, max_length=100)
     crm_origin: str | None = Field(default=None, max_length=100)
     crm_loss_reason: str | None = Field(default=None, max_length=100)
+    crm_priority: str | None = Field(default=None, max_length=100)
 
 
 KINDS = {

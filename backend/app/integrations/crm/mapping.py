@@ -1,6 +1,15 @@
 """Explicit entity contracts; never infer an arbitrary CRM table from model output."""
 
 TYPES = {
+    "crm_ticket": {
+        "entity": "ticket",
+        "label": "CRM · Tickets",
+        "owner": "assigneePerson",
+        "body": "problemDescription",
+        "due": "deadlineDate",
+        "status": "status",
+        "catalog": "ticketStatus",
+    },
     "crm_event": {
         "entity": "event",
         "label": "CRM · Kalender",
@@ -36,7 +45,7 @@ TYPES = {
         "catalog": "salesOpportunityResultStatus",
     },
 }
-TASK_KINDS = {"crm_effort", "crm_office", "crm_sales"}
+TASK_KINDS = {"crm_effort", "crm_office", "crm_sales", "crm_ticket"}
 
 
 def handle(value):

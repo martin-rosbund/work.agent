@@ -40,19 +40,26 @@ export function CrmFields({
     [
       "crm_type",
       "types",
-      kind === "crm_sales" ? "Vertriebsphase" : "Terminart",
+      kind === "crm_sales"
+        ? "Vertriebsphase"
+        : kind === "crm_ticket"
+          ? "Ticketart"
+          : "Terminart",
     ],
     ["crm_forecast", "forecasts", "Forecast"],
     [
       "crm_origin",
       "origins",
-      "Herkunft der Verkaufschance (Pflicht beim Anlegen)",
+      kind === "crm_ticket"
+        ? "Ticket-Herkunft"
+        : "Herkunft der Verkaufschance (Pflicht beim Anlegen)",
     ],
     [
       "crm_loss_reason",
       "loss_reasons",
       "Verlustgrund (falls vom CRM-Status benötigt)",
     ],
+    ["crm_priority", "priorities", "Ticket-Priorität"],
   ];
   return (
     <>

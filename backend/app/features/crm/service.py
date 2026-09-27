@@ -142,6 +142,13 @@ def options(kind: str, session=None, db=None):
 
     try:
         catalogs = {"statuses": TYPES[kind]["catalog"]}
+        if kind == "crm_ticket":
+            catalogs.update(
+                types="ticketType",
+                categories="ticketCategory",
+                origins="ticketSource",
+                priorities="ticketPriority",
+            )
         if kind == "crm_sales":
             catalogs.update(
                 types="salesOpportunityStage",

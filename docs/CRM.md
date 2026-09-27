@@ -10,13 +10,14 @@ Für die lokale ISB.CRM-Entwicklungsumgebung:
 
 In Docker übersetzt der Konnektor lokale Adressen intern auf `host.docker.internal`. Links zur CRM-Oberfläche verwenden weiterhin die eingetragene CRM-Adresse. Für entfernte Systeme ist HTTPS erforderlich. Weiterleitungen werden nicht verfolgt. Der Key wird verschlüsselt gespeichert und nie über die Einstellungs-API zurückgegeben.
 
-**Verbinden & prüfen** prüft das persönliche Profil und die Leserechte der vier Entities. Danach gibt es vier einzeln aktivierbare Quellen:
+**Verbinden & prüfen** prüft das persönliche Profil und die Leserechte der fünf Entities. Danach gibt es fünf einzeln aktivierbare Quellen:
 
 | Quelle | CRM-Entity | Persönlicher Umfang | Datum |
 |---|---|---|---|
 | CRM · Kalender | `event` | Zuständiger Benutzer oder Teilnehmer | `startDate`, `endDate` |
 | CRM · Aufwandsschätzungen | `effortEstimate` | `assigneePerson` | `expectedCompletionDate` |
 | CRM · Office Tasks | `internalCase` | `responsiblePerson` | kein Fälligkeitsfeld |
+| CRM · Tickets | `ticket` | `assigneePerson` | `deadlineDate` mit Uhrzeit |
 | CRM · Verkaufschancen | `salesOpportunity` | `assigneePerson` | `closeDate` |
 
 KI-Freigabe und Schreibzugriff sind anfangs ausgeschaltet. Beides kann pro Quelle unter **Deine Quellen** aktiviert werden. Der CRM-Key übernimmt die Rechte des jeweiligen CRM-Benutzers; Entity- und Feldrechte werden weiterhin durch das CRM geprüft. Benötigt werden Lesezugriff auf das eigene Profil, die ausgewählten Entities und ihre Status-/Auswahlkataloge. Anlegen und Bearbeiten benötigen zusätzlich die entsprechenden Insert-/Update-Rechte.
@@ -32,7 +33,7 @@ Ein Arbeitschat kann z. B. „Erstelle einen Vorschlag für eine Aufwandsschätz
 
 ## Dynamische Statuswerte
 
-Die Integration liest `eventStatus`, `effortEstimateStatus`, `internalCaseStatus` und `salesOpportunityResultStatus`. Anzeigenamen und erlaubte Werte stammen aus diesen Datensätzen; es gibt keine feste Liste von Status-Handles. Ein vorhandenes boolesches `isClosed` bestimmt den Abschluss. Sonst bedeutet `isOpen=false` abgeschlossen. Unbekannte Kennzeichen gelten nicht als Abschluss. Das ist insbesondere für Sales-Statuswerte wichtig, die beide Kennzeichen haben können.
+Die Integration liest `eventStatus`, `effortEstimateStatus`, `internalCaseStatus`, `salesOpportunityResultStatus` und `ticketStatus`. Anzeigenamen und erlaubte Werte stammen aus diesen Datensätzen; es gibt keine feste Liste von Status-Handles. Ein vorhandenes boolesches `isClosed` bestimmt den Abschluss. Sonst bedeutet `isOpen=false` abgeschlossen. Unbekannte Kennzeichen gelten nicht als Abschluss. Das ist insbesondere für Sales-Statuswerte wichtig, die beide Kennzeichen haben können.
 
 Statuskataloge werden bei jeder Synchronisierung und beim Öffnen der CRM-Auswahlfelder neu geladen. Unmittelbar vor einer Statusänderung wird der gewählte Status erneut geprüft. Ein inzwischen als offen konfigurierter Status kann einen Abschlussvorschlag nicht mehr ausführen. Aufgaben- und Kalenderansichten zeigen den CRM-Status und bieten Offen-/Abgeschlossen-Filter.
 
@@ -50,4 +51,6 @@ Statuskataloge werden bei jeder Synchronisierung und beim Öffnen der CRM-Auswah
 
 ## Prüfstand
 
-Automatisierte Tests prüfen Zuordnung der vier Entities, persönliche Filter, dynamische Statuswerte, Änderungen der Abschlusskennzeichen, Pagination, verschlüsselte Tokenablage, Verbindungswechsel, Konflikte und Freigabeschutz. Der lokale API-Port wurde aus Docker erfolgreich erreicht. Ein authentifizierter Test und echte CRM-Schreibaktionen stehen bis zur Einrichtung des persönlichen API-Keys noch aus.
+Automatisierte Tests prüfen Zuordnung der fünf Entities, persönliche Filter, dynamische Statuswerte, Änderungen der Abschlusskennzeichen, Pagination, verschlüsselte Tokenablage, Verbindungswechsel, Konflikte und Freigabeschutz. Der lokale API-Port wurde aus Docker erfolgreich erreicht. Am 27.09.2026 wurde die vorhandene CRM-Verbindung authentifiziert geprüft: fünf zugewiesene Tickets wurden erfolgreich eingelesen; neun Ticketstatuswerte sowie die übrigen Ticket-Kataloge wurden dynamisch geladen. Echte CRM-Schreibaktionen wurden dabei nicht ausgeführt.
+
+CRM-Tickets erscheinen als eigener Aufgabenbereich. Ticketart, Kategorie, Herkunft, Priorität und Status werden aus den jeweiligen CRM-Katalogen geladen. Beim Anlegen wird die Startzeit auf den Erstellungszeitpunkt gesetzt. Bestehende Startzeiten und Lösungsbeschreibungen bleiben beim Bearbeiten erhalten. Neue Ticketquellen erhalten keine automatische KI- oder Schreibfreigabe und lösen keine automatischen Vorschlagsanalysen aus.

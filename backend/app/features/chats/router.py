@@ -4,7 +4,7 @@ from app.api.dependencies import DB, Auth
 from app.api.schemas import *
 
 from . import service
-from .schemas import ChatInput, ConversationInput, EmailReplyDraftInput
+from .schemas import ChatInput, ConversationInput, EmailReplyDraftInput, ArchiveInput
 
 router = APIRouter(tags=["chats"])
 PREFIX = "/api/v1"
@@ -18,8 +18,18 @@ def email_reply_draft(conversation_id: str, body: EmailReplyDraftInput, session=
 
 
 @router.get(PREFIX + "/conversations", response_model=list[ConversationView])
-def conversations(session=Auth, db=DB):
-    return service.conversations(session=session, db=db)
+def conversations(archived: bool = False, session=Auth, db=DB):
+    return service.conversations(session=session, db=db, archived=archived)
+
+
+@router.patch(PREFIX + "/conversations/{conversation_id}/archive", response_model=ConversationView)
+def archive_conversation(conversation_id: str, body: ArchiveInput, session=Auth, db=DB):
+    return service.archive_conversation(conversation_id, body.archived, db)
+
+
+@router.delete(PREFIX + "/conversations/{conversation_id}", response_model=Ok)
+def delete_conversation(conversation_id: str, session=Auth, db=DB):
+    return service.delete_conversation(conversation_id, db)
 
 
 @router.post(PREFIX + "/conversations", response_model=ConversationView)

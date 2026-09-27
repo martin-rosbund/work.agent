@@ -46,7 +46,14 @@ def import_record(db, source, record, status):
         or handle(record.get(spec["status"])),
         "crm_fields": {
             k: handle(record.get(k))
-            for k in ("category", "type", "forecast", "source", "lossReason")
+            for k in (
+                "category",
+                "type",
+                "forecast",
+                "source",
+                "lossReason",
+                "priority",
+            )
         },
         "due": record.get(spec.get("due", "")),
     }

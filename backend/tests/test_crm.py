@@ -126,7 +126,7 @@ def fake(monkeypatch):
     return FakeCRM
 
 
-def test_connection_encrypts_token_creates_four_sources_and_disconnects(
+def test_connection_encrypts_token_creates_five_sources_and_disconnects(
     logged, db, fake
 ):
     result = logged.put(
@@ -142,7 +142,7 @@ def test_connection_encrypts_token_creates_four_sources_and_disconnects(
     db.expire_all()
     assert decrypt(setting(db, "crm")["token"]) == "personal-secret"
     sources = list(db.scalars(select(Source).where(Source.kind.in_(TYPES))))
-    assert len(sources) == 4
+    assert len(sources) == 5
     assert all(not s.writable and not s.ai_enabled for s in sources)
     assert (
         logged.put("/api/v1/crm", json={"url": "https://different.test"}).status_code
@@ -436,3 +436,124 @@ def test_crm_due_date_can_be_cleared_without_changing_other_fields(db, fake):
     actions.execute(db, p.id)
     assert fake.writes[0][2]["expectedCompletionDate"] is None
     assert fake.writes[0][2]["requirementsMarkdown"] == "Bleibt"
+
+
+def test_ticket_create_preserves_deadline_time_and_classification(db, fake):
+    from datetime import datetime
+
+    source = seed(db, "crm_ticket")
+    p = make_proposal(
+        db,
+        source,
+        "create_task",
+        {
+            "title": "Testticket",
+            "body": "Problembeschreibung",
+            "due": "2026-10-02T15:45:00+02:00",
+            "crm_priority": "custom-priority",
+            "crm_type": "custom-type",
+            "crm_category": "custom-category",
+            "crm_origin": "custom-origin",
+        },
+    )
+    actions.approve(db, p.id, p.version)
+    actions.execute(db, p.id)
+    assert p.status == "done"
+    method, path, data, params = fake.writes[0]
+    assert path == "/api/generic/ticket"
+    assert data["problemDescription"] == "Problembeschreibung"
+    assert data["deadlineDate"] == "2026-10-02T15:45:00+02:00"
+    assert datetime.fromisoformat(data["startDate"]).tzinfo
+    assert data["priority"] == "custom-priority"
+    assert data["category"] == "custom-category"
+    assert data["type"] == "custom-type"
+    assert data["source"] == "custom-origin"
+    assert "solutionDescription" not in data
+
+
+def test_ticket_update_keeps_start_and_solution_and_checks_dynamic_completion(db, fake):
+    source = seed(db, "crm_ticket")
+    fake.records = [
+        {
+            "handle": 10,
+            "title": "Ticket",
+            "problemDescription": "Problem",
+            "solutionDescription": "Bestehende Lösung",
+            "updatedAt": "2026-09-27T10:00:00Z",
+            "status": "custom_done",
+        }
+    ]
+    sync_source(db, source)
+    item = db.scalar(select(Item))
+    p = make_proposal(
+        db,
+        source,
+        "update_task",
+        {
+            "item_id": item.id,
+            "title": "Ticket geändert",
+            "body": "Problem",
+            "crm_updated_at": item.meta["crm_updated_at"],
+            "due": None,
+        },
+    )
+    actions.approve(db, p.id, p.version)
+    actions.execute(db, p.id)
+    assert p.status == "done"
+    data = fake.writes[-1][2]
+    assert data["deadlineDate"] is None
+    assert "startDate" not in data and "solutionDescription" not in data
+    p = make_proposal(
+        db,
+        source,
+        "complete_task",
+        {
+            "item_id": item.id,
+            "crm_updated_at": item.meta["crm_updated_at"],
+            "crm_status": "custom_done",
+        },
+    )
+    actions.approve(db, p.id, p.version)
+    actions.execute(db, p.id)
+    assert fake.writes[-1][2] == {"status": "custom_done"}
+
+
+def test_ticket_catalogs_are_loaded_dynamically(logged, fake, monkeypatch):
+    catalogs = []
+
+    def rows(self, entity, filters=None, relations=None):
+        catalogs.append(entity)
+        return [{"handle": "custom", "description": "Eigener Wert", "isOpen": False}]
+
+    monkeypatch.setattr(fake, "rows", rows)
+    result = logged.get("/api/v1/crm/options/crm_ticket")
+    assert result.status_code == 200
+    assert set(catalogs) == {
+        "ticketStatus",
+        "ticketPriority",
+        "ticketType",
+        "ticketCategory",
+        "ticketSource",
+    }
+    assert result.json()["statuses"][0]["closed"] is True
+    assert result.json()["priorities"][0]["value"] == "custom"
+
+
+def test_existing_connection_adds_ticket_source_without_new_ai_consent(
+    logged, db, fake
+):
+    from sqlalchemy import delete
+
+    logged.put(
+        "/api/v1/crm", json={"url": "https://crm.example.test", "token": "test-token"}
+    )
+    db.execute(delete(Source).where(Source.kind == "crm_ticket"))
+    db.commit()
+    old_ids = set(db.scalars(select(Source.id)))
+    assert logged.post("/api/v1/crm/test").status_code == 200
+    assert logged.post("/api/v1/crm/test").status_code == 200
+    db.expire_all()
+    tickets = list(db.scalars(select(Source).where(Source.kind == "crm_ticket")))
+    assert len(tickets) == 1
+    assert not tickets[0].ai_enabled and not tickets[0].writable
+    assert old_ids <= set(db.scalars(select(Source.id)))

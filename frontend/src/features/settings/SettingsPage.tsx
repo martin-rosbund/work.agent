@@ -384,6 +384,7 @@ export function SettingsPage({
                               "crm_effort",
                               "crm_office",
                               "crm_sales",
+                              "crm_ticket",
                             ].includes(s.kind)
                           }
                           onChange={(e) =>

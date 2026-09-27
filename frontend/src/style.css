@@ -1326,6 +1326,7 @@ main {
 }
 .chat-panel-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   padding: 18px 23px;
@@ -3670,6 +3671,15 @@ main {
 .teams-history {
   display: grid;
   gap: 12px;
+}
+.chat-list-filter {
+  display: block;
+  padding: 12px;
+  min-width: 180px;
+}
+.chat-list-filter select {
+  width: 100%;
+  margin-top: 4px;
 }
 .teams-message {
   padding: 14px 16px;

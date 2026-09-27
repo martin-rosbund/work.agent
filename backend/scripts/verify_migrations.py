@@ -48,6 +48,9 @@ def fingerprint(engine):
                 .scalars()
                 .all()
             )
+            if table == "conversations":
+                # New archive flag defaults to false; compare pre-existing fields.
+                rows = [{k: v for k, v in row.items() if k != "archived"} for row in rows]
             data[table] = sorted(
                 json.dumps(row, sort_keys=True, default=str) for row in rows
             )
@@ -73,7 +76,7 @@ else:
     with engine.connect() as conn:
         assert (
             conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
-            == "0002"
+            == "0003_chat_archive"
         )
         assert conn.execute(text("SELECT count(*) FROM github_issues")).scalar() == 0
         assert (
@@ -82,4 +85,4 @@ else:
             ).scalar()
             == "vector"
         )
-    print("PASS fresh migration to 0002:", name)
+    print("PASS fresh migration to 0003_chat_archive:", name)

@@ -31,9 +31,11 @@ type IssuePage = components["schemas"]["IssuePage"];
 export function GitHubPage({
   revision,
   openChat,
+  onChange,
 }: {
   revision: number;
   openChat: (id: string) => void;
+  onChange: () => void;
 }) {
   const notice = useNotice();
   const [repos, setRepos] = useState<Repository[]>([]);
@@ -117,7 +119,7 @@ export function GitHubPage({
     );
     try {
       await api(`/github/repositories/${repo.id}`, "PATCH", change);
-      refresh((v) => v + 1);
+      onChange();
     } catch (e) {
       setRepos((old) => old.map((row) => (row.id === repo.id ? repo : row)));
       notice((e as Error).message, true);
@@ -505,7 +507,7 @@ export function GitHubPage({
         <GitHubConnections
           onClose={() => {
             showConnections(false);
-            refresh((v) => v + 1);
+            onChange();
           }}
         />
       )}

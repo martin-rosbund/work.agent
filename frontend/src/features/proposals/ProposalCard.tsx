@@ -66,6 +66,7 @@ export function ProposalCard({
         crm_forecast: "Forecast",
         crm_origin: "Herkunft",
         crm_loss_reason: "Verlustgrund",
+        crm_priority: "Ticket-Priorität",
       }).map(([key, label]) =>
         p[key] ? (
           <p key={key}>
