@@ -1,5 +1,6 @@
 from fastapi import HTTPException
-from sqlalchemy import select, func, cast
+from sqlalchemy import select, func, cast, delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.core.events import audit, event
@@ -13,6 +14,7 @@ from app.features.connections.schemas import SourceUpdate
 from app.features.connections.service import update_source
 from app.features.content.storage import visible_item
 from app.features.github.models import (
+    GitHubCache,
     GitHubComment,
     GitHubConnection,
     GitHubIssue,
@@ -84,6 +86,30 @@ def change_connection(db, identity, body):
     )
     db.commit()
     return ConnectionView.model_validate(row)
+
+
+def delete_connection(db, identity):
+    row = connection(db, identity)
+    if db.scalar(
+        select(GitHubRepository.id)
+        .where(GitHubRepository.connection_id == identity)
+        .limit(1)
+    ):
+        raise HTTPException(
+            409,
+            "Diese Verbindung enthält importierte Repositories. Bitte stattdessen deaktivieren.",
+        )
+    db.execute(delete(GitHubCache).where(GitHubCache.connection_id == identity))
+    audit(db, "github.connection.deleted", connection_id=identity, owner=row.owner)
+    db.delete(row)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            409, "Die Verbindung wird gerade synchronisiert. Bitte erneut versuchen."
+        ) from None
+    return {"ok": True}
 
 
 def test_connection(db, identity):
@@ -170,6 +196,7 @@ def issues(
     assignee=None,
     offset=0,
     limit=50,
+    local_status=None,
 ):
     query = (
         select(GitHubIssue)
@@ -188,6 +215,8 @@ def issues(
         query = query.where(GitHubIssue.repository_id == repository_id)
     if state:
         query = query.where(GitHubIssue.state == state)
+    if local_status:
+        query = query.where(Item.status == local_status)
     for column, value in [(GitHubIssue.labels, label), (GitHubIssue.assignees, assignee)]:
         if value:
             if db.bind.dialect.name == "postgresql":
@@ -201,6 +230,19 @@ def issues(
         "items": [issue_view(db, row) for row in rows],
         "total": total,
     }
+
+
+def issue_labels(db):
+    rows = db.scalars(
+        select(GitHubIssue.labels)
+        .join(Item, Item.id == GitHubIssue.item_id)
+        .join(Source, Source.id == Item.source_id)
+        .where(
+            Item.available.is_(True), Source.enabled.is_(True),
+            Source.status.not_in(["reauth", "forbidden"]),
+        )
+    )
+    return sorted({label for labels in rows for label in labels}, key=str.casefold)
 
 
 def issue(db, identity):

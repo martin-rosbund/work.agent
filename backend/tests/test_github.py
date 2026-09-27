@@ -5,6 +5,7 @@ from sqlalchemy import select, func
 from app.core.models import Source, Item, Job, now
 from app.core.security import encrypt, decrypt
 from app.features.github.models import (
+    GitHubCache,
     GitHubConnection,
     GitHubRepository,
     GitHubIssue,
@@ -17,6 +18,60 @@ from app.features.github.schemas import ConnectionUpdate
 from app import ai, worker
 
 HTTPClient = httpx.Client
+
+
+def test_delete_empty_connection_removes_cache_and_preserves_other_connections(
+    logged, db, connection
+):
+    identity = connection.id
+    other = GitHubConnection(owner="other", name="Other", token=encrypt("other-token"))
+    db.add(other)
+    db.add(
+        GitHubCache(connection_id=identity, path="/user/repos", payload={"data": []})
+    )
+    db.commit()
+    response = logged.delete(f"/api/v1/github/connections/{identity}")
+    assert response.status_code == 200, response.text
+    db.expire_all()
+    assert db.get(GitHubConnection, identity) is None
+    assert db.get(GitHubConnection, other.id) is not None
+    assert db.scalar(select(func.count()).select_from(GitHubCache)) == 0
+    assert logged.delete(f"/api/v1/github/connections/{identity}").status_code == 404
+
+
+def test_delete_connection_with_repositories_is_blocked(logged, db):
+    seed(db)
+    db.commit()
+    repo = db.scalar(select(GitHubRepository))
+    before = logged.get("/api/v1/github/issues").json()["total"]
+    response = logged.delete(f"/api/v1/github/connections/{repo.connection_id}")
+    assert response.status_code == 409
+    assert "deaktivieren" in response.json()["detail"]
+    assert logged.get("/api/v1/github/issues").json()["total"] == before
+
+
+def test_delete_connection_requires_login(client):
+    assert client.delete("/api/v1/github/connections/missing").status_code == 401
+
+
+def test_label_options_and_local_status_filter_respect_source_visibility(logged, db):
+    seed(db)
+    db.commit()
+    row = db.scalar(select(GitHubIssue))
+    item = db.get(Item, row.item_id)
+    item.status = "in_progress"
+    row.labels = ["bug", "feature"]
+    db.commit()
+    result = logged.get("/api/v1/github/issues", params={"local_status": "in_progress", "label": "bug"})
+    assert result.status_code == 200
+    assert result.json()["total"] == 1
+    assert result.json()["items"][0]["id"] == row.id
+    assert "feature" in logged.get("/api/v1/github/labels").json()
+    db.get(Source, item.source_id).enabled = False
+    db.commit()
+    assert logged.get("/api/v1/github/issues", params={"local_status": "in_progress"}).json()["total"] == 0
+    assert "feature" not in logged.get("/api/v1/github/labels").json()
+    assert logged.get("/api/v1/github/issues", params={"local_status": "invalid"}).status_code == 422
 
 
 @pytest.fixture
@@ -316,6 +371,29 @@ def test_github_scheduler_and_worker_use_same_service(db, connection, monkeypatc
     worker.perform(db, job)
     assert called == [connection.id]
     assert connection.next_discovery > now() + timedelta(minutes=14)
+
+
+def test_worker_sync_imports_github_issues_through_connector(db, connection, monkeypatch):
+    def handler(request):
+        assert request.method == "GET"
+        if request.url.path == "/user/repos":
+            return httpx.Response(200, json=[repository()])
+        if request.url.path.endswith("/issues"):
+            return httpx.Response(200, json=[issue()])
+        if request.url.path.endswith("/issues/1"):
+            return httpx.Response(200, json=issue())
+        return httpx.Response(200, json=[])
+
+    mock_http(monkeypatch, handler)
+    sync.discover(db, connection)
+    job = db.scalar(select(Job).where(Job.kind == "sync"))
+    worker.run_job(job.id)
+    db.expire_all()
+    assert db.get(Job, job.id).status == "done"
+    assert db.scalar(select(func.count()).select_from(GitHubIssue)) == 1
+    source = db.get(Source, job.payload["source_id"])
+    assert source.last_sync is not None
+    assert source.status == "ok"
 
 
 def test_revoked_connection_blocks_pending_embeddings_and_context(db, monkeypatch):

@@ -13,6 +13,10 @@ from .client import Graph, GraphError, plain, q, source_scopes
 def sync_source(db, source):
     graph = Graph(db, source_scopes(source))
     try:
+        if source.kind == "chat" and source.config.get("mode") == "all_direct_incoming":
+            from .direct_messages import sync_direct_messages
+
+            return sync_direct_messages(db, source, graph)
         return _sync(db, source, graph)
     finally:
         graph.close()

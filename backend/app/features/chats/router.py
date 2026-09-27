@@ -4,10 +4,17 @@ from app.api.dependencies import DB, Auth
 from app.api.schemas import *
 
 from . import service
-from .schemas import ChatInput, ConversationInput
+from .schemas import ChatInput, ConversationInput, EmailReplyDraftInput
 
 router = APIRouter(tags=["chats"])
 PREFIX = "/api/v1"
+
+
+@router.post(PREFIX + "/conversations/{conversation_id}/email-reply-draft", response_model=ProposalView)
+def email_reply_draft(conversation_id: str, body: EmailReplyDraftInput, session=Auth, db=DB):
+    from .email_reply import create_email_reply
+
+    return create_email_reply(db, conversation_id, body)
 
 
 @router.get(PREFIX + "/conversations", response_model=list[ConversationView])

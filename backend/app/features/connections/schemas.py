@@ -42,3 +42,15 @@ class SourceUpdate(BaseModel):
     ai_enabled: bool | None = None
     writable: bool | None = None
     days: int | None = Field(default=None, ge=1, le=3650)
+
+
+class ChatChoice(BaseModel):
+    id: str
+    topic: str
+    chatType: str | None = None
+    participants: list[str]
+
+
+class ChatChoicePage(BaseModel):
+    items: list[ChatChoice]
+    continuation: str | None = None

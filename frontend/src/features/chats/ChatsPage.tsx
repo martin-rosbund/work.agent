@@ -22,6 +22,7 @@ import {
   PageHeader,
 } from "../../shared/ui";
 import { ProposalCard } from "../proposals/ProposalCard";
+import { EmailReplyDraft } from "./EmailReplyDraft";
 
 export function ChatsPage({
   selected,
@@ -45,6 +46,13 @@ export function ChatsPage({
     [linkId, setLinkId] = useState("");
   const notice = useNotice(),
     bottom = useRef<HTMLDivElement>(null);
+  const [replyMessage, setReplyMessage] = useState<{
+    id: string;
+    content: string;
+  } | null>(null);
+  const emailItems: Item[] = (detail?.items || []).filter(
+    (item: Item) => item.kind === "mail" && item.available,
+  );
   const load = () => {
     api<any[]>("/conversations")
       .then(setChats)
@@ -63,6 +71,7 @@ export function ChatsPage({
   useEffect(() => {
     setStream("");
     setSending(false);
+    setReplyMessage(null);
   }, [selected]);
   useEffect(() => {
     const listen = (event: Event) => {
@@ -223,6 +232,12 @@ export function ChatsPage({
                         <time>{fmt(message.created_at)}</time>
                       </div>
                       <Markdown text={message.content} />
+                      {message.role === "assistant" &&
+                        emailItems.length > 0 && (
+                          <Button onClick={() => setReplyMessage(message)}>
+                            Als E-Mail-Entwurf übernehmen
+                          </Button>
+                        )}
                       {message.citations.length > 0 && (
                         <div className="citations">
                           {message.citations.map((c: any, n: number) => (
@@ -310,6 +325,15 @@ export function ChatsPage({
           )}
         </div>
       </div>
+      {replyMessage && selected && (
+        <EmailReplyDraft
+          conversationId={selected}
+          message={replyMessage}
+          items={emailItems}
+          close={() => setReplyMessage(null)}
+          saved={load}
+        />
+      )}
       {link && (
         <Modal
           title="Quelle mit diesem Vorgang verknüpfen"

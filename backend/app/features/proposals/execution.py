@@ -228,7 +228,12 @@ def execute(db, proposal_id):
             )
         elif proposal.kind == "reply_teams":
             if source.kind == "chat":
-                path = f"/chats/{q(source.config['chat_id'])}/messages"
+                chat_id = (
+                    item.meta["chat_id"]
+                    if source.config.get("mode") == "all_direct_incoming"
+                    else source.config["chat_id"]
+                )
+                path = f"/chats/{q(chat_id)}/messages"
             else:
                 path = f"/teams/{q(source.config['team_id'])}/channels/{q(source.config['channel_id'])}/messages/{q(item.meta['root_id'])}/replies"
             result = graph.request(

@@ -260,6 +260,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/microsoft/chats/page": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Chat Page */
+    get: operations["chat_page_api_v1_microsoft_chats_page_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/sources/{source_id}": {
     parameters: {
       query?: never;
@@ -499,6 +516,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/conversations/{conversation_id}/email-reply-draft": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Email Reply Draft */
+    post: operations["email_reply_draft_api_v1_conversations__conversation_id__email_reply_draft_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/conversations": {
     parameters: {
       query?: never;
@@ -700,7 +734,8 @@ export interface paths {
     get?: never;
     put?: never;
     post?: never;
-    delete?: never;
+    /** Delete Connection */
+    delete: operations["delete_connection_api_v1_github_connections__identity__delete"];
     options?: never;
     head?: never;
     /** Update Connection */
@@ -767,6 +802,23 @@ export interface paths {
     };
     /** Issues */
     get: operations["issues_api_v1_github_issues_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/github/labels": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue Labels */
+    get: operations["issue_labels_api_v1_github_labels_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -1049,6 +1101,24 @@ export interface components {
       /** Ai Enabled */
       ai_enabled: boolean;
     };
+    /** ChatChoice */
+    ChatChoice: {
+      /** Id */
+      id: string;
+      /** Topic */
+      topic: string;
+      /** Chattype */
+      chatType?: string | null;
+      /** Participants */
+      participants: string[];
+    };
+    /** ChatChoicePage */
+    ChatChoicePage: {
+      /** Items */
+      items: components["schemas"]["ChatChoice"][];
+      /** Continuation */
+      continuation?: string | null;
+    };
     /** ChatInput */
     ChatInput: {
       /** Content */
@@ -1200,6 +1270,15 @@ export interface components {
       topic?: string | null;
     } & {
       [key: string]: unknown;
+    };
+    /** EmailReplyDraftInput */
+    EmailReplyDraftInput: {
+      /** Message Id */
+      message_id: string;
+      /** Item Id */
+      item_id: string;
+      /** Body */
+      body: string;
     };
     /** HTTPValidationError */
     HTTPValidationError: {
@@ -2334,6 +2413,37 @@ export interface operations {
       };
     };
   };
+  chat_page_api_v1_microsoft_chats_page_get: {
+    parameters: {
+      query?: {
+        continuation?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChatChoicePage"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   update_source_api_v1_sources__source_id__patch: {
     parameters: {
       query?: never;
@@ -2814,6 +2924,41 @@ export interface operations {
       };
     };
   };
+  email_reply_draft_api_v1_conversations__conversation_id__email_reply_draft_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EmailReplyDraftInput"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProposalView"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   conversations_api_v1_conversations_get: {
     parameters: {
       query?: never;
@@ -3250,6 +3395,37 @@ export interface operations {
       };
     };
   };
+  delete_connection_api_v1_github_connections__identity__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        identity: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Ok"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   update_connection_api_v1_github_connections__identity__patch: {
     parameters: {
       query?: never;
@@ -3379,6 +3555,7 @@ export interface operations {
         state?: string | null;
         label?: string | null;
         assignee?: string | null;
+        local_status?: string | null;
         offset?: number;
         limit?: number;
       };
@@ -3404,6 +3581,26 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  issue_labels_api_v1_github_labels_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": string[];
         };
       };
     };

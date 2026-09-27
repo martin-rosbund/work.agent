@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -35,12 +35,37 @@ export function SourcePicker({
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const notice = useNotice();
+  const [search, setSearch] = useState("");
+  const [allDirect, setAllDirect] = useState(false);
+  const requestId = useRef(0);
+  useEffect(
+    () => () => {
+      requestId.current += 1;
+    },
+    [],
+  );
   async function load(parent?: string, siteUrl?: string) {
+    const current = ++requestId.current;
     setBusy(true);
     setError("");
+    setSearch("");
     try {
-      setRows(
-        await api(
+      if (kind === "chat") {
+        setRows([]);
+        let continuation: string | null = null;
+        const found = new Map<string, any>();
+        do {
+          const page: { items: any[]; continuation: string | null } = await api(
+            "/microsoft/chats/page" +
+              (continuation ? "?" + new URLSearchParams({ continuation }) : ""),
+          );
+          if (current !== requestId.current) return;
+          page.items.forEach((row) => found.set(row.id, row));
+          setRows([...found.values()]);
+          continuation = page.continuation;
+        } while (continuation);
+      } else {
+        const result = await api(
           "/microsoft/discover/" +
             kind +
             "?" +
@@ -48,15 +73,20 @@ export function SourcePicker({
               ...(parent ? { parent } : {}),
               ...(siteUrl ? { site_url: siteUrl } : {}),
             }),
-        ),
-      );
+        );
+        if (current === requestId.current) setRows(result);
+      }
     } catch (e) {
-      setError((e as Error).message);
+      if (current === requestId.current) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (current === requestId.current) setBusy(false);
     }
   }
   useEffect(() => {
+    requestId.current += 1;
+    setBusy(false);
+    setSearch("");
+    setAllDirect(false);
     setRows([]);
     setPath([]);
     setDrive(null);
@@ -84,10 +114,13 @@ export function SourcePicker({
     }
   }
   async function save() {
-    if (!selected) return;
+    if (!selected && !allDirect) return;
     let config: any = { days: 90 };
     if (kind === "mail") config.folder_id = selected.id;
-    if (kind === "chat") config.chat_id = selected.id;
+    if (kind === "chat") {
+      if (allDirect) config.mode = "all_direct_incoming";
+      else config.chat_id = selected.id;
+    }
     if (kind === "calendar") config.calendar_id = selected.id;
     if (kind === "todo") config.list_id = selected.id;
     if (kind === "channel") {
@@ -129,6 +162,32 @@ export function SourcePicker({
           ))}
         </select>
       </label>
+      {kind === "chat" && (
+        <label className="check-label">
+          <input
+            type="checkbox"
+            checked={allDirect}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setAllDirect(checked);
+              setSelected(null);
+              setName(
+                checked ? "Alle eingehenden Teams-Direktnachrichten" : "",
+              );
+              requestId.current += 1;
+              setBusy(false);
+            }}
+          />
+          <span>
+            Alle eingehenden Direktnachrichten
+            <small>
+              Nachrichten anderer Personen in allen 1:1-Chats, auch von neuen
+              Kontakten. Eigene Nachrichten, Gruppenchats und Besprechungen sind
+              ausgeschlossen. Eine Kontaktauswahl ist nicht nötig.
+            </small>
+          </span>
+        </label>
+      )}
       <div className="row wrap">
         <Button
           onClick={() => {
@@ -137,7 +196,7 @@ export function SourcePicker({
             setSelected(null);
             load();
           }}
-          disabled={busy}
+          disabled={busy || allDirect}
         >
           <RefreshCw size={15} className={busy ? "spin" : ""} /> Quellen laden
         </Button>
@@ -194,47 +253,81 @@ export function SourcePicker({
           ))}
         </div>
       )}
-      <div className="picker-list">
-        {rows.map((row) => (
-          <div
-            key={row.id}
-            className={
-              "picker-row " + (selected?.id === row.id ? "selected" : "")
-            }
-          >
-            <button
-              disabled={kind === "drive" && !!drive && !row.folder}
-              onClick={() => {
-                if (
-                  (kind === "channel" && !path.length) ||
-                  (kind === "drive" && !drive)
-                )
-                  enter(row);
-                else choose(row);
-              }}
-            >
-              <Icon kind={kind === "drive" ? "document" : kind} />
-              <span>
-                {row.displayName ||
-                  row.name ||
-                  row.topic ||
-                  `${row.chatType === "oneOnOne" ? "Einzelchat" : "Gruppenchat"} · ${row.id.slice(-12)}`}
-              </span>
-              {selected?.id === row.id && <Check size={16} />}
-            </button>
-            {((kind === "mail" && row.childFolderCount > 0) ||
-              (kind === "drive" && row.folder)) && (
-              <button
-                className="icon-button"
-                title="Ordner öffnen"
-                onClick={() => enter(row)}
-              >
-                <ChevronRight size={17} />
-              </button>
-            )}
+      {!allDirect && (
+        <>
+          <label>
+            {kind === "chat"
+              ? "Personen oder Chats suchen"
+              : "Quellen durchsuchen"}
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Name eingeben …"
+            />
+          </label>
+          <p className="muted-text" role="status">
+            {rows.length} Quellen geladen
+            {busy
+              ? " · Weitere werden geladen … Du kannst bereits suchen und auswählen."
+              : ""}
+          </p>
+          <div className="picker-list">
+            {rows
+              .filter((row) =>
+                [
+                  row.displayName,
+                  row.name,
+                  row.topic,
+                  ...(row.participants || []),
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+                  .toLocaleLowerCase()
+                  .includes(search.trim().toLocaleLowerCase()),
+              )
+              .map((row) => (
+                <div
+                  key={row.id}
+                  className={
+                    "picker-row " + (selected?.id === row.id ? "selected" : "")
+                  }
+                >
+                  <button
+                    disabled={kind === "drive" && !!drive && !row.folder}
+                    onClick={() => {
+                      if (
+                        (kind === "channel" && !path.length) ||
+                        (kind === "drive" && !drive)
+                      )
+                        enter(row);
+                      else choose(row);
+                    }}
+                  >
+                    <Icon kind={kind === "drive" ? "document" : kind} />
+                    <span>
+                      {row.displayName ||
+                        row.name ||
+                        row.topic ||
+                        `${row.chatType === "oneOnOne" ? "Einzelchat" : "Gruppenchat"} · ${row.id.slice(-12)}`}
+                    </span>
+                    {selected?.id === row.id && <Check size={16} />}
+                  </button>
+                  {((kind === "mail" && row.childFolderCount > 0) ||
+                    (kind === "drive" && row.folder)) && (
+                    <button
+                      className="icon-button"
+                      title="Ordner öffnen"
+                      onClick={() => enter(row)}
+                    >
+                      <ChevronRight size={17} />
+                    </button>
+                  )}
+                </div>
+              ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
       {kind === "drive" && drive && path.length > 0 && (
         <Button
           onClick={() =>
@@ -248,7 +341,7 @@ export function SourcePicker({
           auswählen
         </Button>
       )}
-      {selected && (
+      {(selected || allDirect) && (
         <div className="source-options">
           <label>
             Name im Arbeitsraum
@@ -287,7 +380,11 @@ export function SourcePicker({
       )}
       <div className="modal-actions">
         <span className="muted-text">Nachrichten: zunächst letzte 90 Tage</span>
-        <Button kind="primary" disabled={!selected || !name} onClick={save}>
+        <Button
+          kind="primary"
+          disabled={(!selected && !allDirect) || !name}
+          onClick={save}
+        >
           Quelle verbinden <ArrowRight size={16} />
         </Button>
       </div>

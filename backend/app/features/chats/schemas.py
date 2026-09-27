@@ -8,3 +8,9 @@ class ConversationInput(BaseModel):
 
 class ChatInput(BaseModel):
     content: str = Field(min_length=1, max_length=20000)
+
+
+class EmailReplyDraftInput(BaseModel):
+    message_id: str
+    item_id: str
+    body: str = Field(min_length=1, max_length=30000)

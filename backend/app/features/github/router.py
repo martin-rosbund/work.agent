@@ -40,6 +40,11 @@ def test_connection(identity: str, session=Auth, db=DB):
     return service.test_connection(db, identity)
 
 
+@router.delete("/connections/{identity}", response_model=Ok)
+def delete_connection(identity: str, session=Auth, db=DB):
+    return service.delete_connection(db, identity)
+
+
 @router.get("/repositories", response_model=list[RepositoryView])
 def repositories(session=Auth, db=DB):
     return service.repositories(db)
@@ -57,14 +62,20 @@ def issues(
     state: str | None = Query(None, pattern="^(open|closed)$"),
     label: str | None = None,
     assignee: str | None = None,
+    local_status: str | None = Query(None, pattern="^(new|in_progress|done|archived)$"),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     session=Auth,
     db=DB,
 ):
     return service.issues(
-        db, owner, repository_id, state, label, assignee, offset, limit
+        db, owner, repository_id, state, label, assignee, offset, limit, local_status
     )
+
+
+@router.get("/labels", response_model=list[str])
+def issue_labels(session=Auth, db=DB):
+    return service.issue_labels(db)
 
 
 @router.get("/issues/{identity}", response_model=IssueDetail)

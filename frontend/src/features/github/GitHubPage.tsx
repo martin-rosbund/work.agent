@@ -21,6 +21,8 @@ import {
 import { useNotice } from "../../shared/notifications";
 import { fmt, statusLabels } from "../../shared/presentation";
 import { GitHubConnections } from "./GitHubConnections";
+import { labelColor, localStatusColor } from "./issueBadges";
+import "./issueBadges.css";
 
 type Repository = components["schemas"]["RepositoryView"];
 type Issue = components["schemas"]["IssueDetail"];
@@ -35,6 +37,7 @@ export function GitHubPage({
 }) {
   const notice = useNotice();
   const [repos, setRepos] = useState<Repository[]>([]);
+  const [labels, setLabels] = useState<string[]>([]);
   const [page, setPage] = useState<IssuePage>({ items: [], total: 0 });
   const [filter, setFilter] = useState({
     owner: "",
@@ -42,6 +45,7 @@ export function GitHubPage({
     state: "open",
     label: "",
     assignee: "",
+    local_status: "",
   });
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<Issue | null>(null);
@@ -78,11 +82,13 @@ export function GitHubPage({
     Promise.all([
       api<Repository[]>("/github/repositories"),
       api<IssuePage>("/github/issues?" + query),
+      api<string[]>("/github/labels"),
     ])
-      .then(([r, p]) => {
+      .then(([r, p, availableLabels]) => {
         if (!cancelled) {
           setRepos(r);
           setPage(p);
+          setLabels(availableLabels);
           setError("");
         }
       })
@@ -277,13 +283,33 @@ export function GitHubPage({
           </select>
         </label>
         <label>
-          Label
-          <input
-            aria-label="Label"
+          Typ / Label
+          <select
+            aria-label="Typ / Label"
             value={filter.label}
             onChange={(e) => updateFilter("label", e.target.value)}
-            placeholder="z. B. bug"
-          />
+          >
+            <option value="">Alle Labels</option>
+            {labels.map((label) => (
+              <option key={label} value={label}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Lokaler Status
+          <select
+            aria-label="Lokaler Status"
+            value={filter.local_status}
+            onChange={(e) => updateFilter("local_status", e.target.value)}
+          >
+            <option value="">Alle Bearbeitungsstände</option>
+            <option value="new">Neu</option>
+            <option value="in_progress">In Arbeit</option>
+            <option value="done">Erledigt</option>
+            <option value="archived">Archiviert</option>
+          </select>
         </label>
         <label>
           Zuständig
@@ -315,16 +341,22 @@ export function GitHubPage({
               </small>
               <h3>{issue.title}</h3>
               <div className="button-row">
-                <Badge kind={issue.state === "open" ? "green" : ""}>
+                <Badge
+                  kind={
+                    issue.state === "open" ? "github-green" : "github-purple"
+                  }
+                >
                   {issue.state === "open" ? "Offen" : "Geschlossen"}
                 </Badge>
                 {issue.labels.map((l) => (
-                  <Badge key={l}>{l}</Badge>
+                  <Badge key={l} kind={labelColor(l)}>
+                    {l}
+                  </Badge>
                 ))}
-                <span>
+                <Badge kind={localStatusColor(issue.local_status)}>
                   Lokal:{" "}
                   {statusLabels[issue.local_status] || issue.local_status}
-                </span>
+                </Badge>
               </div>
             </div>
             <time>{fmt(issue.updated_at)}</time>
@@ -361,11 +393,24 @@ export function GitHubPage({
           <div className="github-detail">
             <div className="button-row">
               {selected.demo && <Badge>DEMO</Badge>}
-              <Badge>
+              <Badge
+                kind={
+                  selected.state === "open" ? "github-green" : "github-purple"
+                }
+              >
                 {selected.state === "open"
                   ? "GitHub: Offen"
                   : "GitHub: Geschlossen"}
               </Badge>
+              <Badge kind={localStatusColor(selected.local_status)}>
+                Lokal:{" "}
+                {statusLabels[selected.local_status] || selected.local_status}
+              </Badge>
+              {selected.labels.map((label) => (
+                <Badge key={label} kind={labelColor(label)}>
+                  {label}
+                </Badge>
+              ))}
               <Badge>
                 {selected.ai_enabled ? "KI freigegeben" : "Nur lokal"}
               </Badge>

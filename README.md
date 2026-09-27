@@ -34,6 +34,8 @@ Ausführlich: [F5 und Entwickleranleitung](docs/DEVELOPMENT.md), [Modulstruktur 
 
 Die Anwendung verwendet MSAL, Authorization Code mit PKCE, serverseitigen Tokencache und delegierte Berechtigungen. Es werden keine Application Permissions benötigt. Firmenrichtlinien, Conditional Access und Admin-Zustimmung können einzelne Bereiche sperren. Private Microsoft-Konten und fremde Postfächer sind nicht Teil dieser Version. Eine App-Registrierung ersetzt weder deine Anmeldung noch die Freigabe deiner IT.
 
+Bei Teams-Chats zeigt die Quellenauswahl bereits die ersten 50 Chats an und lädt weitere Seiten im Hintergrund. Das Suchfeld durchsucht Chatnamen und Teilnehmernamen der bereits geladenen Chats. Alternativ lässt sich **Alle eingehenden Direktnachrichten** ohne Kontaktauswahl verbinden: Diese Sammelquelle erfasst auch neue 1:1-Kontakte, aber keine eigenen Nachrichten, Gruppenchats, Besprechungen oder Systemmeldungen. Der Erstimport umfasst standardmäßig 90 Tage und läuft in kleinen Paketen. KI-Verarbeitung und Aktionen nach Freigabe werden weiterhin für die Quelle separat aktiviert. Bereits einzeln verbundene Chats können zusätzlich dieselben Nachrichten enthalten; deaktiviere sie bei Verwendung der Sammelquelle, wenn du doppelte Einträge vermeiden möchtest.
+
 | Bereich | Lesen / Auswahl | Zusätzliche Schreibrechte |
 | --- | --- | --- |
 | Profil | User.Read | – |

@@ -257,6 +257,10 @@ def validate_source(body):
         "todo": ["list_id"],
         "drive": ["drive_id", "folder_id"],
     }[body.kind]
+    if body.kind == "chat" and body.config.get("mode") == "all_direct_incoming":
+        required = []
+        if body.config.get("chat_id"):
+            raise HTTPException(400, "Bitte Einzelchat oder alle Direktnachrichten auswählen.")
     if any(
         (
             not isinstance(body.config.get(key), str) or not body.config[key]

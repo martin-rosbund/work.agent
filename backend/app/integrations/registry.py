@@ -28,11 +28,19 @@ class MicrosoftConnector:
         return graph.discover(db, kind, parent, site_url)
 
 
+class GitHubConnector:
+    def sync(self, db, source):
+        from app.features.github.sync import sync_source
+
+        return sync_source(db, source)
+
+    def discover(self, db, kind, parent=None, site_url=None):
+        raise ValueError("GitHub-Repositories werden über die GitHub-Verbindungen ausgewählt.")
+
+
 def connector_for(kind: str) -> SourceConnector:
     if kind == "github":
-        from app.features.github import sync
-
-        return sync
+        return GitHubConnector()
     if kind in graph.READ_SCOPES:
         return MicrosoftConnector()
     raise ValueError("Für diese Quelle ist kein externer Konnektor registriert.")

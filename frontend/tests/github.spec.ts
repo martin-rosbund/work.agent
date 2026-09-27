@@ -44,9 +44,15 @@ test("GitHub filters, comments, local status, consent and copied issue order", a
   await page
     .getByLabel("Repository", { exact: true })
     .selectOption({ label: "demo-team/work-agent" });
-  await page.getByLabel("Label", { exact: true }).fill("bug");
+  await page.getByLabel("Typ / Label", { exact: true }).selectOption("bug");
   await page.getByLabel("Zuständig", { exact: true }).fill("sam-demo");
   await expect(page.locator(".github-issue")).toHaveCount(1);
+  await expect(page.locator(".github-issue .badge.github-red")).toHaveText(
+    "bug",
+  );
+  await expect(page.locator(".github-issue .badge.github-green")).toHaveText(
+    "Offen",
+  );
   await page.locator(".github-issue").click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("Reproduziert");

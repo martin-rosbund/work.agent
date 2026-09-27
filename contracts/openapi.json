@@ -542,6 +542,55 @@
         }
       }
     },
+    "/api/v1/microsoft/chats/page": {
+      "get": {
+        "tags": [
+          "connections"
+        ],
+        "summary": "Chat Page",
+        "operationId": "chat_page_api_v1_microsoft_chats_page_get",
+        "parameters": [
+          {
+            "name": "continuation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Continuation"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatChoicePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sources/{source_id}": {
       "patch": {
         "tags": [
@@ -1266,6 +1315,58 @@
         }
       }
     },
+    "/api/v1/conversations/{conversation_id}/email-reply-draft": {
+      "post": {
+        "tags": [
+          "chats"
+        ],
+        "summary": "Email Reply Draft",
+        "operationId": "email_reply_draft_api_v1_conversations__conversation_id__email_reply_draft_post",
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailReplyDraftInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/conversations": {
       "get": {
         "tags": [
@@ -1897,6 +1998,46 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "GitHub"
+        ],
+        "summary": "Delete Connection",
+        "operationId": "delete_connection_api_v1_github_connections__identity__delete",
+        "parameters": [
+          {
+            "name": "identity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Identity"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/github/connections/{identity}/test": {
@@ -2108,6 +2249,23 @@
             }
           },
           {
+            "name": "local_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(new|in_progress|done|archived)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Local Status"
+            }
+          },
+          {
             "name": "offset",
             "in": "query",
             "required": false,
@@ -2148,6 +2306,31 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/github/labels": {
+      "get": {
+        "tags": [
+          "GitHub"
+        ],
+        "summary": "Issue Labels",
+        "operationId": "issue_labels_api_v1_github_labels_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "title": "Response Issue Labels Api V1 Github Labels Get"
                 }
               }
             }
@@ -2980,6 +3163,70 @@
         "title": "CalendarView",
         "description": "Calendar metadata includes start/end with source timezone."
       },
+      "ChatChoice": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "chatType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chattype"
+          },
+          "participants": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Participants"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "topic",
+          "participants"
+        ],
+        "title": "ChatChoice"
+      },
+      "ChatChoicePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ChatChoice"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "continuation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ChatChoicePage"
+      },
       "ChatInput": {
         "properties": {
           "content": {
@@ -3411,6 +3658,31 @@
           "id"
         ],
         "title": "DiscoveryEntry"
+      },
+      "EmailReplyDraftInput": {
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "title": "Message Id"
+          },
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 30000,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message_id",
+          "item_id",
+          "body"
+        ],
+        "title": "EmailReplyDraftInput"
       },
       "HTTPValidationError": {
         "properties": {

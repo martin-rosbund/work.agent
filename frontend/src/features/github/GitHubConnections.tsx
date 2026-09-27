@@ -13,6 +13,8 @@ export function GitHubConnections({ onClose }: { onClose: () => void }) {
   const [owner, setOwner] = useState("");
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const load = () =>
     api<Connection[]>("/github/connections")
       .then(setRows)
@@ -78,7 +80,41 @@ export function GitHubConnections({ onClose }: { onClose: () => void }) {
               >
                 {row.enabled ? "Deaktivieren" : "Aktivieren"}
               </Button>
+              <Button onClick={() => setConfirmDelete(row.id)}>
+                Löschen
+              </Button>
             </div>
+            {confirmDelete === row.id && (
+              <div role="group" aria-label="Verbindung löschen bestätigen">
+                <p>
+                  Verbindung „{row.name}“ ({row.owner}) und den lokal gespeicherten
+                  Token löschen? Das ist nur ohne importierte Repositories möglich.
+                </p>
+                <div className="button-row">
+                  <Button
+                    disabled={deleting === row.id}
+                    onClick={async () => {
+                      setDeleting(row.id);
+                      try {
+                        await api(`/github/connections/${row.id}`, "DELETE");
+                        setConfirmDelete(null);
+                        await load();
+                        notice("GitHub-Verbindung gelöscht.");
+                      } catch (error) {
+                        notice((error as Error).message, true);
+                      } finally {
+                        setDeleting(null);
+                      }
+                    }}
+                  >
+                    {deleting === row.id ? "Wird gelöscht …" : "Endgültig löschen"}
+                  </Button>
+                  <Button disabled={deleting === row.id} onClick={() => setConfirmDelete(null)}>
+                    Abbrechen
+                  </Button>
+                </div>
+              </div>
+            )}
             {!row.demo && (
               <form
                 onSubmit={async (e) => {

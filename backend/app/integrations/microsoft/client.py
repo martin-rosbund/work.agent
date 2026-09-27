@@ -302,9 +302,10 @@ def discover(db, kind, parent=None, site_url=None):
                 if not row.get("topic"):
                     row["topic"] = (
                         ", ".join(
-                            member.get("displayName", "")
-                            for member in row.get("members", [])
+                            member["displayName"]
+                            for member in (row.get("members") or [])
                             if member.get("userId") != own_id
+                            and member.get("displayName")
                         )
                         or "Teams-Unterhaltung"
                     )

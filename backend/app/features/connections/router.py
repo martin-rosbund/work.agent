@@ -11,6 +11,7 @@ from .schemas import (
     MicrosoftSettings,
     SourceInput,
     SourceUpdate,
+    ChatChoicePage,
 )
 
 router = APIRouter(tags=["connections"])
@@ -78,6 +79,13 @@ def discover(
 @router.get(PREFIX + "/sources", response_model=list[SourceView])
 def sources(session=Auth, db=DB):
     return service.sources(session=session, db=db)
+
+
+@router.get(PREFIX + "/microsoft/chats/page", response_model=ChatChoicePage)
+def chat_page(continuation: str | None = None, session=Auth, db=DB):
+    from app.integrations.microsoft.chat_discovery import chat_page as discover_page
+
+    return discover_page(db, continuation)
 
 
 @router.post(PREFIX + "/sources", response_model=SourceView)
